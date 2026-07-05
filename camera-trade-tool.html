@@ -1,0 +1,2074 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>ผู้ช่วยงานรับซื้อกล้อง</title>
+<script>
+  (function(){const _w=console.warn,_l=console.log;const hide=(a)=>typeof a==='string'&&(a.includes('cdn.tailwindcss.com')||a.includes('in-browser Babel')||a.includes('production'));console.warn=function(...a){if(hide(a[0]))return;_w.apply(console,a);};console.log=function(...a){if(hide(a[0]))return;_l.apply(console,a);};})();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  html, body { margin: 0; padding: 0; background: #EDEDE9; -webkit-tap-highlight-color: transparent; }
+  * { -webkit-user-select: none; user-select: none; }
+  input, textarea, pre { -webkit-user-select: text; user-select: text; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+// ---------- lucide-style inline icons ----------
+function Icon({ children, size = 16, className = "", strokeWidth = 2 }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round"
+      strokeLinejoin="round" className={className}>{children}</svg>
+  );
+}
+const Copy = (p) => <Icon {...p}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></Icon>;
+const Check = (p) => <Icon {...p}><path d="M20 6 9 17l-5-5"/></Icon>;
+const Plus = (p) => <Icon {...p}><path d="M5 12h14"/><path d="M12 5v14"/></Icon>;
+const Trash2 = (p) => <Icon {...p}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></Icon>;
+const Camera = (p) => <Icon {...p}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></Icon>;
+const Wallet = (p) => <Icon {...p}><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></Icon>;
+const ClipboardList = (p) => <Icon {...p}><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></Icon>;
+const Search = (p) => <Icon {...p}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></Icon>;
+const ChevronDown = (p) => <Icon {...p}><path d="m6 9 6 6 6-6"/></Icon>;
+const ChevronUp = (p) => <Icon {...p}><path d="m18 15-6-6-6 6"/></Icon>;
+const Aperture = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><path d="m14.31 8 5.74 9.94"/><path d="M9.69 8h11.48"/><path d="m7.38 12 5.74-9.94"/><path d="M9.69 16 3.95 6.06"/><path d="M14.31 16H2.83"/><path d="m16.62 12-5.74 9.94"/></Icon>;
+const RotateCcw = (p) => <Icon {...p}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></Icon>;
+
+
+// ---------- helpers ----------
+const pad = (n) => String(n).padStart(2, "0");
+const toThaiDate = (d) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+const toKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const todayISO = () => toThaiDate(new Date());
+const todayKey = () => toKey(new Date());
+
+const parseThaiDateToKey = (s) => {
+  const m = s.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return null;
+  // input เป็น วัน/เดือน/ปี → key เป็น ปี-เดือน-วัน
+  return `${m[3]}-${pad(m[2])}-${pad(m[1])}`;
+};
+
+// ---------- storage: ใช้ localStorage เป็นหลัก (เชื่อถือได้ในแอป) เผื่อ window.storage ไม่ทำงาน ----------
+const PREFIX = "cameraTradeTool:";
+const store = {
+  get(key) {
+    try {
+      const v = localStorage.getItem(PREFIX + key);
+      return v == null ? null : v;
+    } catch (e) {
+      return null;
+    }
+  },
+  set(key, value) {
+    try {
+      localStorage.setItem(PREFIX + key, value);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  },
+  remove(key) {
+    try {
+      localStorage.removeItem(PREFIX + key);
+    } catch (e) {}
+  },
+  keys(prefix) {
+    try {
+      const out = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(PREFIX + prefix)) out.push(k.slice(PREFIX.length));
+      }
+      return out;
+    } catch (e) {
+      return [];
+    }
+  },
+};
+
+// ---------- Supabase: ฐานข้อมูลกลาง (ทุกเครื่องเห็นข้อมูลรวมกัน) ----------
+const SUPABASE_URL = "https://ueqfrddrkcihtabxtmuj.supabase.co";
+const SUPABASE_KEY = "sb_publishable_r4BTqiPEuiQmZP1Qp8T9KA_EFbuOsUh";
+const SUPA_TABLE = "camera_purchases";
+
+const supa = {
+  headers() {
+    return {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+    };
+  },
+  // ดึงรายการทั้งหมด -> { [dateKey]: [entry, ...] }
+  async fetchAll() {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/${SUPA_TABLE}?select=id,date_key,entry&order=created_at.asc`,
+      { headers: this.headers() }
+    );
+    if (!res.ok) throw new Error("fetch failed " + res.status);
+    const rows = await res.json();
+    const byDate = {};
+    for (const r of rows) {
+      if (!byDate[r.date_key]) byDate[r.date_key] = [];
+      byDate[r.date_key].push(r.entry);
+    }
+    return byDate;
+  },
+  // บันทึก/อัปเดต 1 รายการ (upsert ด้วย id)
+  async upsert(id, dateKey, entry) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${SUPA_TABLE}?on_conflict=id`, {
+      method: "POST",
+      headers: { ...this.headers(), Prefer: "resolution=merge-duplicates" },
+      body: JSON.stringify([{ id, date_key: dateKey, entry }]),
+    });
+    if (!res.ok) throw new Error("upsert failed " + res.status);
+  },
+  // ลบ 1 รายการ
+  async remove(id) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${SUPA_TABLE}?id=eq.${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: this.headers(),
+    });
+    if (!res.ok) throw new Error("delete failed " + res.status);
+  },
+};
+
+// ---------- condition checklist definitions, split by product type ----------
+const LENS_ISSUES = [
+  { key: "fungus_no_effect", label: "มีรา — ไม่มีผลต่อภาพ — ถ่าย" },
+  { key: "fungus_effect", label: "มีรา — มีผลต่อภาพ", needsF: true, photoSuffix: " — ถ่าย" },
+  { key: "haze_faint_no_effect", label: "มีฝ้าบางๆ — ไม่มีผลต่อภาพ — ไม่ถ่าย" },
+  { key: "haze_no_effect", label: "มีฝ้า — ไม่มีผลต่อภาพ — ถ่าย" },
+  { key: "haze_effect", label: "มีฝ้า — มีผลต่อภาพ", needsF: true, photoSuffix: " — ถ่าย" },
+  { key: "dust_no_effect", label: "มีฝุ่น — ไม่มีผลต่อภาพ — ไม่ถ่าย" },
+  { key: "dust_effect", label: "มีฝุ่น — มีผลต่อภาพตั้งแต่", needsF: true, photoSuffix: " — ถ่าย" },
+];
+const BODY_ISSUES = [
+  { key: "dead_pixel", label: "มี Dead Pixel", photoSuffix: " — ถ่าย" },
+  { key: "dead_pixel_screen", label: "มี Dead Pixel ที่จอภาพ", photoSuffix: " — ถ่าย" },
+  { key: "dust_viewfinder", label: "มีฝุ่นในช่องมองภาพ", photoSuffix: " — ถ่าย" },
+  { key: "fungus_viewfinder", label: "มีราในช่องมองภาพ", photoSuffix: " — ถ่าย" },
+  { key: "dust_screen", label: "มีฝุ่นที่จอภาพ", photoSuffix: " — ถ่าย" },
+  { key: "sensor_dust", label: "มีฝุ่นหน้าเซนเซอร์", needsF: true, fOptional: true, fPrefix: " เห็นบางๆ ตั้งแต่", photoSuffix: " — ถ่าย" },
+];
+const ISSUES_BY_TYPE = { lens: LENS_ISSUES, body: BODY_ISSUES };
+const ALL_ISSUES = [...LENS_ISSUES, ...BODY_ISSUES];
+
+const PRODUCT_TYPES = [
+  { key: "body", label: "ตัวกล้อง", icon: Camera },
+  { key: "lens", label: "เลนส์", icon: Aperture },
+];
+
+const SELL_MODE_OPTIONS = [
+  { key: "together", label: "ขายคู่กับตัวหลัก" },
+  { key: "separate", label: "แยกขาย" },
+];
+
+// ของสมนาคุณตามกิจกรรม — แต่ละชิ้นมีสีให้เลือกต่างกัน
+const GIFT_ITEMS = [
+  { key: "fan", label: "พัดลม", colors: ["สีดำ", "สีขาว"] },
+  { key: "tumbler", label: "กระบอกน้ำ", colors: ["สีครีม", "สีเขียว", "สีแดง", "สีดำ", "สีกากี"] },
+  {
+    key: "luggage",
+    label: "กระเป๋าเดินทาง",
+    colors: ["สีเทาน้ำเงิน", "สีขาว", "สีดำ", "สีฟ้า", "สีเขียว", "สีชมพู", "สีม่วง", "สีเทา"],
+  },
+  { key: "kodak", label: "กล้อง KODAK CHARMERA 1987", colors: [] },
+];
+
+const giftColorsFor = (key) => GIFT_ITEMS.find((g) => g.key === key)?.colors || [];
+
+const emptyProduct = () => ({
+  id: crypto.randomUUID(),
+  name: "",
+  sn: "",
+  hasMountSn: false, // เปิดช่อง SN เม้าส์เมื่อจำเป็น (บางรุ่นเช่น Canon)
+  snMount: "", // SN เม้าส์ (เว้นว่างได้ — บางรุ่นเช่น Canon มี SN เลนส์ + SN เม้าส์)
+  type: "", // "body" | "lens" | ""
+  typeManual: false, // true once the person picks a type by hand, to stop auto-detect overwriting it
+  sellMode: "", // "together" | "separate" | ""
+  issues: {}, // issueKey -> { checked: bool, f: string }
+  otherCondition: "",
+  sensorCleaned: false,
+  sendRepair: false,
+  photosNote: "",
+});
+
+const emptyTf = () => ({
+  mode: "buy", // "buy" | "trade" | "refund"
+  date: todayISO(),
+  isCash: false, // จ่ายเงินสด — ไม่ต้องมีบัญชี/ธนาคาร/ชื่อบัญชี
+  account: "",
+  bank: "",
+  payeeName: "",
+  amount: "",
+  // หักมัดจำ — กรอกยอดจริง + สิ่งที่หัก + จำนวน แล้วระบบคำนวณยอดจ่ายจริงให้
+  hasDeposit: false,
+  realAmount: "", // ยอดจริงก่อนหัก เช่น 21,000
+  depositReason: "", // หักมัดจำอะไร เช่น ค่าแท่นชาร์จ
+  depositAmount: "", // จำนวนที่หัก เช่น 1,000
+  buyerSource: "",
+  giftItem: "", // ของสมนาคุณ (key)
+  giftColor: "", // สีของสมนาคุณ
+  salesName: "",
+  // ===== โหมดเทรด =====
+  shopItemName: "", // สินค้าของร้าน (ชื่อ)
+  shopItemSn: "", // SN สินค้าของร้าน
+  shopItemLink: "", // ลิงก์สินค้าของร้าน (naituanoi.com)
+  tradeDiffAmount: "", // ยอดส่วนต่าง
+  tradeDir: "customerPays", // "customerPays" (ลูกค้าจ่ายเรา) | "shopPays" (เราจ่ายลูกค้า)
+  // ===== โหมดโอนคืนลูกค้า =====
+  refundReason: "", // เหตุผลโอนคืน
+  // ===== โหมดฝากขาย =====
+  consignItems: [emptyConsignItem()], // รายการสินค้าฝากขาย
+});
+
+function emptyConsignItem() {
+  return { id: crypto.randomUUID(), name: "", price: "", link: "", noLink: false, customPct: "" };
+}
+
+// เปอร์เซ็นต์ค่าฝาก: ถ้ากรอกเองใช้ตามที่กรอก ไม่งั้นราคา<10,000=20%, >=10,000=10%
+const consignPct = (item) => {
+  if (item.customPct !== "" && item.customPct != null && !isNaN(parseNum(item.customPct))) {
+    return parseNum(item.customPct);
+  }
+  return parseNum(item.price) >= 10000 ? 10 : 20;
+};
+const consignNet = (item) => {
+  const p = parseNum(item.price);
+  return Math.round(p - (p * consignPct(item)) / 100);
+};
+
+// เหตุผลโอนคืนเริ่มต้น (ผู้ใช้เพิ่มเองได้ ระบบจำไว้)
+const DEFAULT_REFUND_REASONS = ["สรุปยอดผิด", "สินค้ามีปัญหาลูกค้าคืน", "สินค้าหมด", "ลูกค้าไม่รับเมมแล้ว"];
+
+// แปลงตัวเลขมีคอมมา -> number
+const parseNum = (s) => parseFloat(String(s || "").replace(/,/g, "")) || 0;
+const fmtNum = (n) => n.toLocaleString();
+
+// ตัดคำว่า "SN ..." ที่ผู้ใช้อาจพิมพ์ซ้ำในช่อง เหลือแค่ค่าจริง
+const cleanSn = (s) => String(s || "").replace(/^\s*SN\s*(เลนส์|เม้าส์|กล้อง)?\s*:?\s*/i, "").trim();
+
+// เดาว่าเป็น "เลนส์" หรือ "ตัวกล้อง" จากชื่อสินค้า
+// เลนส์มักมีระยะ+รูรับแสง เช่น "18-45 F4.5-6.3", "50 F1.8", "16-50mm"
+// ตัวกล้องเป็นชื่อรุ่นเฉยๆ เช่น "EOS M10", "A6500", "X-T3"
+function detectProductType(name) {
+  if (!name) return "";
+  const n = name.toUpperCase();
+  const hasFStop = /\bF\/?\d+(\.\d+)?(-\d+(\.\d+)?)?\b/.test(n); // F1.8, F4.5-6.3
+  const hasFocalRange = /\b\d{1,3}-\d{1,3}\s*MM?\b/.test(n); // 18-45mm, 18-45 MM
+  const hasMM = /\bMM\b/.test(n);
+  const hasLensWords = /\b(STM|IS|OSS|USM|VR|OS|DC|DG|ART|MACRO|PRIME)\b/.test(n);
+  if (hasFStop || hasFocalRange || hasMM || hasLensWords) return "lens";
+
+  const hasBodyWords = /\b(EOS|ILCE|ALPHA|X-T\d+|X-S\d+|X-E\d+|X-PRO\d*|Z\d+|D\d{2,4}|GFX\d*|OM-\d+|LUMIX|M\d{1,2}\b|A6\d{3}|A7\w*|R\d{1,3})\b/.test(
+    n
+  );
+  if (hasBodyWords) return "body";
+
+  return ""; // ไม่แน่ใจ ให้คนเลือกเอง
+}
+
+function CopyBtn({ text, label = "คัดลอกข้อความ" }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1600);
+        } catch (e) {}
+      }}
+      className="flex items-center gap-2 rounded-lg bg-[#B5652F] hover:bg-[#9E5526] text-[#FFFFFF] font-semibold px-4 py-2.5 text-sm transition-colors active:scale-[0.98]"
+    >
+      {copied ? <Check size={16} /> : <Copy size={16} />}
+      {copied ? "คัดลอกแล้ว" : label}
+    </button>
+  );
+}
+
+function CopySaveButton({ text, onSave, savedToday }) {
+  const [justCopied, setJustCopied] = useState(false);
+  const handle = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {}
+    setJustCopied(true);
+    setTimeout(() => setJustCopied(false), 1800);
+    await onSave();
+  };
+  return (
+    <button
+      onClick={handle}
+      className={`w-full flex items-center justify-center gap-2 rounded-xl font-bold py-3.5 text-[15px] transition-colors active:scale-[0.98] ${
+        savedToday ? "bg-[#DCEAE2] text-[#3E7A5A] border border-[#4A8C74]" : "bg-[#4A8C74] hover:bg-[#3E7A66] text-[#FFFFFF]"
+      }`}
+    >
+      {justCopied ? <Check size={18} /> : <Copy size={18} />}
+      {justCopied ? "คัดลอกแล้ว + บันทึกแล้ว" : savedToday ? "คัดลอกอีกครั้ง + อัปเดต" : "คัดลอกข้อความ + บันทึกเข้าสรุปยอด"}
+    </button>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <label className="block">
+      <span className="block text-xs font-medium text-[#6E675C] mb-1.5 tracking-wide">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+const inputCls =
+  "w-full rounded-lg bg-[#F4F3EF] border border-[#D4D2CB] px-3 py-2.5 text-[15px] text-[#2B2823] placeholder:text-[#9A9388] focus:outline-none focus:ring-2 focus:ring-[#B5652F]/60 focus:border-[#B5652F]";
+
+// อาการแต่ละอย่าง ครอบด้วย ❌ หน้า-หลัง
+function buildConditionLines(product) {
+  const lines = [];
+  const issueList = ISSUES_BY_TYPE[product.type] || [];
+  issueList.forEach((issue) => {
+    const state = product.issues[issue.key];
+    if (!state?.checked) return;
+    let body = issue.label;
+    if (issue.needsF) {
+      const fVal = (state.f || "").trim();
+      if (issue.fOptional) {
+        // ใส่ F ก็ต่อท้าย ไม่ใส่ก็ข้าม
+        if (fVal) body += `${issue.fPrefix || ""} F${fVal}`;
+      } else {
+        body += `${issue.fPrefix || ""} F${fVal || "?"}`;
+      }
+    }
+    if (issue.photoSuffix) body += issue.photoSuffix;
+    lines.push(`❌${body}❌`);
+  });
+  if (product.otherCondition) lines.push(`❌${product.otherCondition}❌`);
+  return lines;
+}
+
+// ข้อความแจ้งอาการต่อ 1 สินค้า สำหรับส่งทีมเช็คตำหนิ
+function productIssueMessage(product, mainName) {
+  const lines = [];
+  // หัว: ชื่อสินค้า (+ บอกขายคู่/แยก ถ้าไม่ใช่ตัวหลัก)
+  let header = product.name || "(ไม่ระบุชื่อ)";
+  if (product.sellMode === "together") {
+    header += mainName ? ` (ขายคู่กับตัวหลัก ${mainName})` : " (ขายคู่กับตัวหลัก)";
+  } else if (product.sellMode === "separate") {
+    header += " (แยกขาย)";
+  }
+  lines.push(header);
+  if (product.snMount) {
+    lines.push(`SN เลนส์ : ${cleanSn(product.sn)}`);
+    lines.push(`SN เม้าส์ : ${cleanSn(product.snMount)}`);
+  } else if (product.sn) {
+    lines.push(`SN : ${cleanSn(product.sn)}`);
+  }
+  // อาการที่ติ๊ก
+  buildConditionLines(product).forEach((l) => lines.push(l));
+  // คลีนเซนเซอร์ (สั่งทีมให้คลีน)
+  if (product.type === "body" && product.sensorCleaned) {
+    lines.push(`‼️คลีนเซนเซอร์`);
+  }
+  // สถานะ: ส่งซ่อม / ขายได้เลย
+  lines.push(product.sendRepair ? `⚠️ ส่งซ่อม` : `✅ ขายได้เลย`);
+  return lines.join("\n");
+}
+
+function IssueChecklist({ issues, product, onToggle, onFChange }) {
+  return (
+    <div className="space-y-1.5">
+      {issues.map((issue) => {
+        const state = product.issues[issue.key] || { checked: false, f: "" };
+        return (
+          <div key={issue.key} className="flex items-center gap-2">
+            <button
+              onClick={() => onToggle(issue.key)}
+              className={`flex-shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                state.checked ? "bg-[#B5652F] border-[#B5652F]" : "border-[#B8B5AC] bg-[#F4F3EF]"
+              }`}
+            >
+              {state.checked && <Check size={13} className="text-[#FFFFFF]" strokeWidth={3} />}
+            </button>
+            <span className="text-[13px] text-[#3A362F] flex-1">{issue.label}</span>
+            {issue.needsF && state.checked && (
+              <input
+                className="w-16 rounded-md bg-[#F4F3EF] border border-[#D4D2CB] px-2 py-1 text-[13px] text-[#2B2823] focus:outline-none focus:ring-1 focus:ring-[#B5652F]"
+                placeholder="F#"
+                value={state.f}
+                onChange={(e) => onFChange(issue.key, e.target.value)}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AutocompleteInput({ value, onChange, placeholder, history, className }) {
+  const [open, setOpen] = useState(false);
+  const blurTimer = useRef(null);
+  const query = (value || "").trim().toLowerCase();
+  const suggestions =
+    query.length > 0
+      ? (history || []).filter((h) => h.toLowerCase().includes(query) && h.toLowerCase() !== query).slice(0, 6)
+      : (history || []).slice(0, 6);
+
+  return (
+    <div className="relative">
+      <input
+        className={className || inputCls}
+        placeholder={placeholder}
+        value={value}
+        onFocus={() => setOpen(true)}
+        onBlur={() => {
+          blurTimer.current = setTimeout(() => setOpen(false), 150);
+        }}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {open && suggestions.length > 0 && (
+        <div className="absolute z-10 left-0 right-0 mt-1 rounded-lg bg-[#F4F3EF] border border-[#D4D2CB] overflow-hidden shadow-lg">
+          {suggestions.map((item) => (
+            <button
+              key={item}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                onChange(item);
+                setOpen(false);
+              }}
+              className="w-full px-3 py-2.5 text-left text-[13.5px] text-[#3A362F] hover:bg-[#EAE8E2] border-b border-[#DAD8D1] last:border-b-0"
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SimpleProductBlock({ product, onChange, onRemove, showRemove, showSellMode, history, index }) {
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const blurTimer = useRef(null);
+
+  const handleNameChange = (name) => {
+    const next = { ...product, name };
+    // ถ้ายังไม่เคยเลือกประเภทเอง ให้ระบบเดาให้อัตโนมัติจากชื่อ
+    if (!product.typeManual) {
+      const guess = detectProductType(name);
+      if (guess) next.type = guess;
+    }
+    onChange(next);
+  };
+
+  const pickSuggestion = (item) => {
+    onChange({ ...product, name: item.name, type: item.type || product.type, typeManual: !!item.type });
+    setShowSuggestions(false);
+  };
+
+  const query = product.name.trim().toLowerCase();
+  const suggestions =
+    query.length > 0
+      ? (history || []).filter((h) => h.name.toLowerCase().includes(query) && h.name.toLowerCase() !== query).slice(0, 6)
+      : [];
+
+  return (
+    <div className="rounded-xl border border-[#D4D2CB] bg-[#FFFFFF] p-3 space-y-2.5 relative">
+      {showRemove && (
+        <button
+          onClick={onRemove}
+          className="absolute top-2 right-2 text-[#6E675C] hover:text-[#C0483B] p-1"
+          aria-label="ลบสินค้า"
+        >
+          <Trash2 size={15} />
+        </button>
+      )}
+
+      {index === 0 && showRemove && (
+        <div className="flex items-center gap-1.5 text-[11px] text-[#3E7A5A]">
+          <Check size={12} strokeWidth={3} /> ชิ้นนี้คือตัวหลัก
+        </div>
+      )}
+
+      <div className="relative">
+        <Field label="ชื่อสินค้า">
+          <input
+            className={inputCls}
+            placeholder="เช่น Canon EOS M10 หรือ Canon RF-S 18-45 F4.5-6.3 STM"
+            value={product.name}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => {
+              // delay so a tap on a suggestion registers before the list closes
+              blurTimer.current = setTimeout(() => setShowSuggestions(false), 150);
+            }}
+            onChange={(e) => handleNameChange(e.target.value)}
+          />
+        </Field>
+        {showSuggestions && suggestions.length > 0 && (
+          <div className="absolute z-10 left-0 right-0 mt-1 rounded-lg bg-[#F4F3EF] border border-[#D4D2CB] overflow-hidden shadow-lg">
+            {suggestions.map((item) => (
+              <button
+                key={item.name}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => pickSuggestion(item)}
+                className="w-full flex items-center justify-between px-3 py-2.5 text-left text-[13.5px] text-[#3A362F] hover:bg-[#EAE8E2] border-b border-[#DAD8D1] last:border-b-0"
+              >
+                <span>{item.name}</span>
+                {item.type && (
+                  <span className="text-[10.5px] text-[#6E675C] flex-shrink-0 ml-2">
+                    {item.type === "lens" ? "เลนส์" : "กล้อง"}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Field label="Serial Number (SN)">
+        <input
+          className={inputCls}
+          placeholder="เช่น 398072010884"
+          value={product.sn}
+          onChange={(e) => onChange({ ...product, sn: e.target.value })}
+        />
+      </Field>
+      {!product.hasMountSn ? (
+        <button
+          onClick={() => onChange({ ...product, hasMountSn: true })}
+          className="flex items-center gap-1 text-[12px] text-[#B5652F] font-medium"
+        >
+          <Plus size={13} /> เพิ่ม SN เม้าส์ (บางรุ่นเช่น Canon)
+        </button>
+      ) : (
+        <div className="relative">
+          <Field label="SN เม้าส์">
+            <input
+              className={inputCls}
+              placeholder="เช่น UY0401"
+              value={product.snMount}
+              onChange={(e) => onChange({ ...product, snMount: e.target.value })}
+            />
+          </Field>
+          <button
+            onClick={() => onChange({ ...product, hasMountSn: false, snMount: "" })}
+            className="absolute top-0 right-0 text-[11px] text-[#6E675C]"
+          >
+            เอาออก
+          </button>
+        </div>
+      )}
+      {showSellMode && (
+        <div>
+          <span className="block text-xs font-medium text-[#6E675C] mb-1.5 tracking-wide">ชิ้นนี้ขายยังไง</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => onChange({ ...product, sellMode: product.sellMode === "together" ? "" : "together" })}
+              className={`flex-1 rounded-lg py-2 text-[12px] font-medium border transition-colors ${
+                product.sellMode === "together"
+                  ? "bg-[#B5652F] border-[#B5652F] text-[#FFFFFF]"
+                  : "bg-[#F4F3EF] border-[#D4D2CB] text-[#5A544A]"
+              }`}
+            >
+              ขายคู่กับตัวหลัก
+            </button>
+            <button
+              onClick={() => onChange({ ...product, sellMode: product.sellMode === "separate" ? "" : "separate" })}
+              className={`flex-1 rounded-lg py-2 text-[12px] font-medium border transition-colors ${
+                product.sellMode === "separate"
+                  ? "bg-[#B5652F] border-[#B5652F] text-[#FFFFFF]"
+                  : "bg-[#F4F3EF] border-[#D4D2CB] text-[#5A544A]"
+              }`}
+            >
+              แยกขายต่างหาก
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ConditionCard({ product, onChange, conditionHistory }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const toggleIssue = (key) => {
+    const cur = product.issues[key] || { checked: false, f: "" };
+    onChange({ ...product, issues: { ...product.issues, [key]: { ...cur, checked: !cur.checked } } });
+  };
+  const setF = (key, f) => {
+    const cur = product.issues[key] || { checked: false, f: "" };
+    onChange({ ...product, issues: { ...product.issues, [key]: { ...cur, f } } });
+  };
+
+  const condCount = buildConditionLines(product).length;
+  const label = product.name || product.sn || "(ยังไม่ระบุชื่อสินค้า)";
+  const typeLabel = PRODUCT_TYPES.find((t) => t.key === product.type)?.label;
+  const issueList = ISSUES_BY_TYPE[product.type] || [];
+
+  if (!product.type) {
+    return (
+      <div className="rounded-xl border border-[#D4D2CB] bg-[#FFFFFF] px-3.5 py-3">
+        <div className="text-[13.5px] font-medium text-[#2B2823]">{label}</div>
+        <p className="text-[11.5px] text-[#9A9388] mt-1">
+          ยังไม่ได้เลือกประเภทสินค้า (ตัวกล้อง/เลนส์) — เลือกก่อนที่ช่อง "สินค้า" ด้านบนค่ะ
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-[#D4D2CB] bg-[#FFFFFF] overflow-hidden">
+      <button onClick={() => setExpanded(!expanded)} className="w-full flex items-center justify-between px-3.5 py-3">
+        <div className="text-left">
+          <div className="text-[13.5px] font-medium text-[#2B2823]">
+            {label} <span className="text-[#9A9388] font-normal">· {typeLabel}</span>
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            {condCount > 0 && <span className="text-[11px] text-[#B5652F]">พบ {condCount} อาการ</span>}
+            <span
+              className={`text-[11px] px-1.5 py-0.5 rounded ${
+                product.sendRepair ? "bg-[#E8D9C4] text-[#9A6432]" : "bg-[#D6EBDD] text-[#3E7A5A]"
+              }`}
+            >
+              {product.sendRepair ? "ส่งซ่อม" : "ขายได้เลย"}
+            </span>
+          </div>
+        </div>
+        {expanded ? <ChevronUp size={16} className="text-[#6E675C]" /> : <ChevronDown size={16} className="text-[#6E675C]" />}
+      </button>
+
+      {expanded && (
+        <div className="p-3 space-y-3.5 border-t border-[#DAD8D1]">
+          <div>
+            <span className="block text-xs font-medium text-[#6E675C] mb-1.5 tracking-wide">
+              {typeLabel}มีอาการอะไรบ้าง (ติ๊กได้หลายข้อ)
+            </span>
+            <IssueChecklist issues={issueList} product={product} onToggle={toggleIssue} onFChange={setF} />
+          </div>
+
+          {product.type === "body" && (
+            <button
+              onClick={() => onChange({ ...product, sensorCleaned: !product.sensorCleaned })}
+              className="w-full flex items-center gap-2.5 rounded-lg bg-[#F4F3EF] border border-[#D4D2CB] px-3 py-2.5"
+            >
+              <span
+                className={`flex-shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                  product.sensorCleaned ? "bg-[#B5652F] border-[#B5652F]" : "border-[#B8B5AC] bg-[#FFFFFF]"
+                }`}
+              >
+                {product.sensorCleaned && <Check size={13} className="text-[#FFFFFF]" strokeWidth={3} />}
+              </span>
+              <span className="text-[13px] text-[#3A362F]">แจ้งให้คลีนเซนเซอร์</span>
+              <span className="text-[11px] text-[#9A9388] ml-auto">ติ๊ก = บอกทีมให้คลีน</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => onChange({ ...product, sendRepair: !product.sendRepair })}
+            className="w-full flex items-center gap-2.5 rounded-lg bg-[#F4F3EF] border border-[#D4D2CB] px-3 py-2.5"
+          >
+            <span
+              className={`flex-shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                product.sendRepair ? "bg-[#C0483B] border-[#C0483B]" : "border-[#B8B5AC] bg-[#FFFFFF]"
+              }`}
+            >
+              {product.sendRepair && <Check size={13} className="text-[#FFFFFF]" strokeWidth={3} />}
+            </span>
+            <span className="text-[13px] text-[#3A362F]">ส่งซ่อม</span>
+            <span className="text-[11px] text-[#9A9388] ml-auto">ไม่กด = ไม่ส่งซ่อม ขายได้เลย</span>
+          </button>
+
+          <Field label="อาการอื่นๆ (พิมพ์เพิ่มเติมได้ ระบบจำอาการที่เคยพิมพ์)">
+            <AutocompleteInput
+              value={product.otherCondition}
+              onChange={(v) => onChange({ ...product, otherCondition: v })}
+              placeholder="เช่น มีเสียงดังตอนซูม"
+              history={conditionHistory}
+            />
+          </Field>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ClearFormButton({ onClear }) {
+  const [confirming, setConfirming] = useState(false);
+
+  if (confirming) {
+    return (
+      <div className="flex gap-2">
+        <button
+          onClick={() => {
+            onClear();
+            setConfirming(false);
+          }}
+          className="flex-1 flex items-center justify-center gap-1.5 text-[12.5px] font-medium text-[#C0483B] border border-[#C0483B]/40 rounded-lg py-2"
+        >
+          <Trash2 size={13} /> ยืนยันล้างข้อมูล
+        </button>
+        <button
+          onClick={() => setConfirming(false)}
+          className="flex-1 flex items-center justify-center text-[12.5px] font-medium text-[#5A544A] border border-[#D4D2CB] rounded-lg py-2"
+        >
+          ยกเลิก
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setConfirming(true)}
+      className="w-full flex items-center justify-center gap-1.5 text-[12px] text-[#9A9388] py-2"
+    >
+      <RotateCcw size={13} /> ล้างข้อมูลฟอร์มทั้งหมด
+    </button>
+  );
+}
+
+// ---------- main ----------
+function App() {
+  const [tab, setTab] = useState("purchase");
+  const [toast, setToast] = useState("");
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 1800);
+  };
+
+  // ===== Purchase / transfer form (single page, feeds daily summary) =====
+  const [tf, setTf] = useState(emptyTf());
+  const [tfProducts, setTfProducts] = useState([emptyProduct()]);
+  const [savedToday, setSavedToday] = useState(false);
+  const [currentEntryId, setCurrentEntryId] = useState(null);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const draftSaveTimer = useRef(null);
+
+  // ===== In-memory purchases cache: { "2026-07-04": [entry, ...] } =====
+  // ข้อมูลกลางเก็บที่ Supabase (ทุกเครื่องเห็นรวมกัน) + สำเนาไว้ในเครื่องกันเน็ตหลุด
+  const [purchasesByDate, setPurchasesByDate] = useState({});
+  const [syncing, setSyncing] = useState(false);
+
+  const loadFromLocal = useCallback(() => {
+    try {
+      const keys = store.keys("purchases:");
+      const loaded = {};
+      for (const k of keys) {
+        const v = store.get(k);
+        if (v) {
+          try {
+            loaded[k.slice("purchases:".length)] = JSON.parse(v);
+          } catch (e) {}
+        }
+      }
+      return loaded;
+    } catch (e) {
+      return {};
+    }
+  }, []);
+
+  const refreshFromCloud = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const byDate = await supa.fetchAll();
+      setPurchasesByDate(byDate);
+      try {
+        for (const [k, list] of Object.entries(byDate)) {
+          store.set(`purchases:${k}`, JSON.stringify(list));
+        }
+      } catch (e) {}
+      return true;
+    } catch (e) {
+      return false;
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    setPurchasesByDate(loadFromLocal());
+    refreshFromCloud();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ===== Product name history — remembers every product name ever typed, so next time it's a tap not a retype =====
+  const [productHistory, setProductHistory] = useState([]); // [{ name, type }]
+
+  useEffect(() => {
+    try {
+      const v = store.get("product-history");
+      if (v) setProductHistory(JSON.parse(v));
+    } catch (e) {}
+  }, []);
+
+  const rememberProductName = useCallback((name, type) => {
+    const trimmed = (name || "").trim();
+    if (!trimmed) return;
+    setProductHistory((prev) => {
+      const withoutDup = prev.filter((p) => p.name.toLowerCase() !== trimmed.toLowerCase());
+      const next = [{ name: trimmed, type: type || "" }, ...withoutDup].slice(0, 2000);
+      store.set("product-history", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  // ===== Custom condition history (learns new symptoms typed in "อาการอื่นๆ") =====
+  const [conditionHistory, setConditionHistory] = useState([]);
+
+  useEffect(() => {
+    try {
+      const v = store.get("condition-history");
+      if (v) setConditionHistory(JSON.parse(v));
+    } catch (e) {}
+  }, []);
+
+  // ===== Refund reason history (เหตุผลโอนคืน — เริ่มจาก default + เพิ่มเองได้) =====
+  const [refundReasons, setRefundReasons] = useState(DEFAULT_REFUND_REASONS);
+
+  useEffect(() => {
+    try {
+      const v = store.get("refund-reasons");
+      if (v) {
+        const saved = JSON.parse(v);
+        // รวม default + ที่เคยเพิ่ม ไม่ซ้ำ
+        const merged = [...DEFAULT_REFUND_REASONS];
+        saved.forEach((r) => {
+          if (!merged.some((m) => m.toLowerCase() === r.toLowerCase())) merged.push(r);
+        });
+        setRefundReasons(merged);
+      }
+    } catch (e) {}
+  }, []);
+
+  const rememberRefundReason = useCallback((reason) => {
+    const trimmed = (reason || "").trim();
+    if (!trimmed) return;
+    setRefundReasons((prev) => {
+      if (prev.some((r) => r.toLowerCase() === trimmed.toLowerCase())) return prev;
+      const next = [...prev, trimmed];
+      // เก็บเฉพาะที่ไม่ใช่ default (default มีอยู่แล้วในโค้ด)
+      const customOnly = next.filter((r) => !DEFAULT_REFUND_REASONS.includes(r));
+      store.set("refund-reasons", JSON.stringify(customOnly));
+      return next;
+    });
+  }, []);
+
+  const rememberString = useCallback((value, setter, storageKey) => {
+    const trimmed = (value || "").trim();
+    if (!trimmed) return;
+    setter((prev) => {
+      const withoutDup = prev.filter((s) => s.toLowerCase() !== trimmed.toLowerCase());
+      const next = [trimmed, ...withoutDup].slice(0, 2000);
+      store.set(storageKey, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  // ---- load draft (unsaved in-progress form) on mount, so nothing is lost on close/reopen ----
+  useEffect(() => {
+    try {
+      const v = store.get("draft:purchase-form");
+      if (v) {
+        const draft = JSON.parse(v);
+        if (draft.tf) setTf(draft.tf);
+        if (draft.tfProducts && draft.tfProducts.length) setTfProducts(draft.tfProducts);
+        if (draft.savedToday) setSavedToday(draft.savedToday);
+        if (draft.currentEntryId) setCurrentEntryId(draft.currentEntryId);
+      }
+    } catch (e) {}
+    setDraftLoaded(true);
+  }, []);
+
+  // ---- autosave draft on every change, debounced, so closing the app / switching apps never loses data ----
+  useEffect(() => {
+    if (!draftLoaded) return; // don't overwrite draft with initial empty state before load finishes
+    if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+    draftSaveTimer.current = setTimeout(() => {
+      store.set("draft:purchase-form", JSON.stringify({ tf, tfProducts, savedToday, currentEntryId }));
+    }, 400);
+    return () => {
+      if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+    };
+  }, [tf, tfProducts, savedToday, currentEntryId, draftLoaded]);
+
+  // ยอดจ่ายจริง = ยอดจริง - มัดจำ (ถ้าใช้โหมดหักมัดจำ) ไม่งั้นใช้ยอดที่กรอกตรงๆ
+  const finalAmount = () => {
+    if (tf.hasDeposit) {
+      return parseNum(tf.realAmount) - parseNum(tf.depositAmount);
+    }
+    return parseNum(tf.amount);
+  };
+
+  // บรรทัดหมายเหตุหักมัดจำ มี ❌ ปิดหน้า-ปิดหลัง
+  const depositNoteLine = () => {
+    if (!tf.hasDeposit) return "";
+    const real = parseNum(tf.realAmount);
+    const dep = parseNum(tf.depositAmount);
+    const reason = tf.depositReason || "มัดจำ";
+    return `❌ยอดจริง ${fmtNum(real)} หักมัดจำ${reason} : ${fmtNum(dep)} = ${fmtNum(real - dep)}❌`;
+  };
+
+  // ข้อความแจ้งอาการทั้งหมด ส่งทีมเช็คตำหนิ
+  const issueText = () => {
+    const prods = tfProducts.filter((p) => p.name || p.sn);
+    if (prods.length === 0) return "";
+    const mainName = prods[0]?.name || "";
+    return prods.map((p, idx) => productIssueMessage(p, idx === 0 ? "" : mainName)).join("\n\n");
+  };
+
+  const transferText = () => {
+    const lines = [];
+    lines.push(tf.date);
+    lines.push("");
+    // บัญชี/ธนาคาร/ชื่อ — ข้ามได้ถ้าจ่ายเงินสด
+    if (!tf.isCash) {
+      if (tf.account) lines.push(`เลขบัญชี : ${tf.account}`);
+      if (tf.bank) lines.push(`ธนาคาร : ${tf.bank}`);
+      if (tf.payeeName) lines.push(`ชื่อ: ${tf.payeeName}`);
+    }
+    lines.push(`ยอด : ${fmtNum(finalAmount())}`);
+    // หมายเหตุหักมัดจำ (ถ้ามี)
+    if (tf.hasDeposit) {
+      lines.push("");
+      lines.push(depositNoteLine());
+    }
+    lines.push("");
+    tfProducts.forEach((p) => {
+      if (!p.name && !p.sn && !p.snMount) return;
+      lines.push(`ชื่อสินค้า : ${p.name}`);
+      if (p.snMount) {
+        lines.push(`SN เลนส์ : ${cleanSn(p.sn)}`);
+        lines.push(`SN เม้าส์ : ${cleanSn(p.snMount)}`);
+      } else {
+        lines.push(`SN : ${cleanSn(p.sn)}`);
+      }
+      lines.push("");
+    });
+    lines.push(`ซื้อมาจาก : ${tf.buyerSource}`);
+    // ของสมนาคุณ (ถ้ามี)
+    if (tf.giftItem) {
+      const giftLabel = GIFT_ITEMS.find((g) => g.key === tf.giftItem)?.label || tf.giftItem;
+      lines.push("");
+      lines.push(`ของสมนาคุณ : ${giftLabel}${tf.giftColor ? ` ${tf.giftColor}` : ""}`);
+    }
+    // ชื่อผู้ปิดการขาย — เคาะลงมา 1 บรรทัด
+    if (tf.salesName) {
+      lines.push("");
+      lines.push(tf.salesName);
+    }
+    return lines.join("\n").trim();
+  };
+
+  // ===== ข้อความโหมดเทรด =====
+  const tradeText = () => {
+    const lines = [];
+    lines.push(`วันที่ ${tf.date}`);
+    lines.push("");
+    lines.push("👉🏻สินค้าของร้าน");
+    lines.push("");
+    if (tf.shopItemName) lines.push(tf.shopItemName);
+    if (tf.shopItemSn) lines.push(`SN : ${cleanSn(tf.shopItemSn)}`);
+    if (tf.shopItemLink) lines.push(tf.shopItemLink);
+    lines.push("");
+    lines.push("👉🏻สินค้าที่เอามาเทรด");
+    lines.push("");
+    tfProducts.forEach((p) => {
+      if (!p.name && !p.sn) return;
+      lines.push(`ชื่อสินค้า : ${p.name}`);
+      if (p.snMount) {
+        lines.push(`SN เลนส์ : ${cleanSn(p.sn)}`);
+        lines.push(`SN เม้าส์ : ${cleanSn(p.snMount)}`);
+      } else {
+        lines.push(`SN : ${cleanSn(p.sn)}`);
+      }
+      lines.push("");
+    });
+    lines.push(`ซื้อมาจาก : ${tf.buyerSource}`);
+    lines.push("");
+    lines.push("👉🏻ยอดส่วนต่าง");
+    if (tf.tradeDir === "shopPays") {
+      lines.push(`เราจ่ายให้ลูกค้า ${tf.tradeDiffAmount} บาท`);
+      // เราจ่าย ต้องมีบัญชีลูกค้า
+      if (tf.account || tf.bank || tf.payeeName) {
+        lines.push("");
+        if (tf.account) lines.push(`เลขบัญชี : ${tf.account}`);
+        if (tf.bank) lines.push(`ธนาคาร : ${tf.bank}`);
+        if (tf.payeeName) lines.push(`ชื่อ : ${tf.payeeName}`);
+      }
+    } else {
+      lines.push("");
+      lines.push(`ลูกค้าจ่ายให้เรา ${tf.tradeDiffAmount} บาท`);
+    }
+    if (tf.salesName) {
+      lines.push("");
+      lines.push(tf.salesName);
+    }
+    return lines.join("\n").trim();
+  };
+
+  // ===== ข้อความโหมดโอนคืนลูกค้า =====
+  const refundText = () => {
+    const lines = [];
+    lines.push("โอนเงินคืนลูกค้า");
+    if (tf.refundReason) lines.push(`เนื่องจาก : ${tf.refundReason}`);
+    lines.push("");
+    if (tf.account) lines.push(`เลขบัญชี : ${tf.account}`);
+    if (tf.bank) lines.push(`ธนาคาร : ${tf.bank}`);
+    if (tf.payeeName) lines.push(`ชื่อ : ${tf.payeeName}`);
+    lines.push(`ยอด : ${tf.amount}`);
+    if (tf.buyerSource) lines.push(`จาก : ${tf.buyerSource}`);
+    if (tf.salesName) {
+      lines.push("");
+      lines.push(tf.salesName);
+    }
+    return lines.join("\n").trim();
+  };
+
+  // เลือกข้อความตามโหมด
+  const mainText = () => {
+    if (tf.mode === "trade") return tradeText();
+    if (tf.mode === "refund") return refundText();
+    if (tf.mode === "consign") return consignText();
+    return transferText();
+  };
+
+  // ===== ข้อความโหมดฝากขาย =====
+  const consignTotal = () => {
+    return (tf.consignItems || []).reduce((sum, it) => sum + (it.name || it.price ? consignNet(it) : 0), 0);
+  };
+
+  const consignText = () => {
+    const items = (tf.consignItems || []).filter((it) => it.name || it.price);
+    const lines = [];
+    lines.push(`วันที่ ${tf.date}`);
+    lines.push("");
+    lines.push("▲ โอนเงินลูกค้าฝากขาย ▲");
+    lines.push("");
+    if (tf.account) lines.push(`เลขบัญชี : ${tf.account}`);
+    if (tf.bank) lines.push(`ธนาคาร : ${tf.bank}`);
+    if (tf.payeeName) lines.push(`ชื่อ : ${tf.payeeName}`);
+    lines.push(`ยอด : ${fmtNum(consignTotal())}`);
+    lines.push("");
+    items.forEach((it, idx) => {
+      const price = parseNum(it.price);
+      const pct = consignPct(it);
+      const net = consignNet(it);
+      lines.push(`${idx + 1}. ${it.name} ราคา ${fmtNum(price)} บาท`);
+      if (it.noLink) lines.push("ไม่มีลิงก์ในชีท");
+      else if (it.link) lines.push(it.link);
+      lines.push(`▲ รวม ${fmtNum(price)} - ${pct}% = ${fmtNum(net)} บาท ▲`);
+      lines.push("");
+    });
+    const sumParts = items.map((it) => fmtNum(consignNet(it))).join("+");
+    lines.push(`‼️รวมทั้งหมด ${sumParts} = ${fmtNum(consignTotal())} บาทครับ‼️`);
+    if (tf.buyerSource) {
+      lines.push("");
+      lines.push(`มาจาก : ${tf.buyerSource}`);
+    }
+    if (tf.salesName) {
+      lines.push("");
+      lines.push(tf.salesName);
+    }
+    return lines.join("\n").trim();
+  };
+
+  const saveTransferToLog = () => {
+    const prods = tfProducts.filter((p) => p.name || p.sn);
+    let hasAmount;
+    if (tf.mode === "trade") hasAmount = parseNum(tf.tradeDiffAmount) > 0 || prods.length > 0;
+    else if (tf.mode === "refund") hasAmount = parseNum(tf.amount) > 0;
+    else if (tf.mode === "consign") hasAmount = consignTotal() > 0;
+    else hasAmount = tf.hasDeposit ? parseNum(tf.realAmount) > 0 : parseNum(tf.amount) > 0;
+    if (!hasAmount && prods.length === 0) {
+      showToast("กรอกยอดหรือสินค้าก่อนนะคะ");
+      return;
+    }
+    const key = parseThaiDateToKey(tf.date) || todayKey();
+    const entryId = currentEntryId || crypto.randomUUID();
+    // ยอดที่บันทึกเข้าสรุป: เทรด=ยอดส่วนต่าง, โอนคืน=ยอด(ติดลบเชิงความหมาย แต่เก็บเป็นบวก), รับซื้อ=finalAmount
+    const savedAmount =
+      tf.mode === "trade"
+        ? tf.tradeDiffAmount
+        : tf.mode === "refund"
+        ? tf.amount
+        : tf.mode === "consign"
+        ? fmtNum(consignTotal())
+        : fmtNum(finalAmount());
+    const entry = {
+      id: entryId,
+      mode: tf.mode,
+      tradeDir: tf.tradeDir,
+      // นับเข้ายอดรวมเฉพาะเงินที่ร้านจ่ายออก (เทรดแบบลูกค้าจ่ายเรา = ไม่นับ)
+      countsToTotal: !(tf.mode === "trade" && tf.tradeDir === "customerPays"),
+      fullText: mainText(), // ข้อความเต็มตามโหมด สำหรับแสดงในสรุปยอด
+      amount: savedAmount,
+      isCash: tf.isCash,
+      depositNote: tf.hasDeposit ? depositNoteLine() : "",
+      refundReason: tf.refundReason,
+      shopItemName: tf.shopItemName,
+      shopItemSn: tf.shopItemSn,
+      shopItemLink: tf.shopItemLink,
+      buyerSource: tf.buyerSource,
+      payeeName: tf.payeeName,
+      giftItem: tf.giftItem,
+      giftColor: tf.giftColor,
+      salesName: tf.salesName,
+      products: prods.map((p) => ({
+        id: p.id,
+        name: p.name,
+        sn: p.sn,
+        snMount: p.snMount,
+        type: p.type,
+        sellMode: p.sellMode,
+        sendRepair: p.sendRepair,
+        conditionLines: buildConditionLines(p),
+      })),
+    };
+
+    // อัปเดต cache ในหน่วยความจำก่อน (ชัวร์ 100% ไม่พึ่ง storage) แล้วค่อย sync ลง storage
+    let isUpdate = false;
+    setPurchasesByDate((prev) => {
+      const dayList = prev[key] ? [...prev[key]] : [];
+      const existingIdx = dayList.findIndex((e) => e.id === entryId);
+      if (existingIdx >= 0) {
+        dayList[existingIdx] = entry;
+        isUpdate = true;
+      } else {
+        dayList.push(entry);
+      }
+      const next = { ...prev, [key]: dayList };
+      store.set(`purchases:${key}`, JSON.stringify(dayList));
+      return next;
+    });
+
+    setSavedToday(true);
+    setCurrentEntryId(entryId);
+    prods.forEach((p) => rememberProductName(p.name, p.type));
+    prods.forEach((p) => rememberString(p.otherCondition, setConditionHistory, "condition-history"));
+    showToast(isUpdate ? "อัปเดตรายการแล้ว" : "บันทึกเข้าสรุปยอดวันนี้แล้ว");
+
+    // ส่งขึ้นฐานข้อมูลกลาง (ทุกเครื่องเห็น) — ถ้าเน็ตหลุดยังมีสำเนาในเครื่อง
+    supa.upsert(entryId, key, entry).catch(() => {
+      showToast("บันทึกในเครื่องแล้ว แต่ยังไม่ขึ้นฐานข้อมูลกลาง (เช็คเน็ต)");
+    });
+  };
+
+  const startNewEntry = () => {
+    setTf(emptyTf());
+    setTfProducts([emptyProduct()]);
+    setSavedToday(false);
+    setCurrentEntryId(null);
+    store.remove("draft:purchase-form");
+    showToast("เริ่มรายการใหม่แล้ว");
+  };
+
+  // ===== Daily summary tab: reads from the in-memory purchases cache =====
+  const [summaryDateInput, setSummaryDateInput] = useState(todayISO());
+  const [loadedKey, setLoadedKey] = useState(null);
+
+  const entries = useMemo(() => {
+    if (!loadedKey) return [];
+    return purchasesByDate[loadedKey] || [];
+  }, [loadedKey, purchasesByDate]);
+
+  const loadSummaryForDate = useCallback((dateStr) => {
+    const key = parseThaiDateToKey(dateStr);
+    if (!key) {
+      showToast("รูปแบบวันที่ต้องเป็น วัน/เดือน/ปี เช่น 3/7/2026");
+      return;
+    }
+    setLoadedKey(key);
+  }, []);
+
+  useEffect(() => {
+    setLoadedKey(todayKey());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const removeEntry = (id) => {
+    if (!loadedKey) return;
+    setPurchasesByDate((prev) => {
+      const dayList = (prev[loadedKey] || []).filter((e) => e.id !== id);
+      const next = { ...prev, [loadedKey]: dayList };
+      store.set(`purchases:${loadedKey}`, JSON.stringify(dayList));
+      return next;
+    });
+    // ลบออกจากฐานข้อมูลกลางด้วย
+    supa.remove(id).catch(() => {});
+  };
+
+  const displayDate = useMemo(() => {
+    if (!loadedKey) return summaryDateInput;
+    const [y, m, d] = loadedKey.split("-");
+    return `${d}/${m}/${y}`;
+  }, [loadedKey, summaryDateInput]);
+
+  // ยอดรวม = เฉพาะเงินที่ร้านจ่ายออก (ข้ามเทรดแบบลูกค้าจ่ายเรา)
+  const total = entries.reduce((sum, e) => {
+    const counts = e.countsToTotal !== false; // รายการเก่าที่ไม่มี field นี้ = นับ
+    if (!counts) return sum;
+    return sum + (parseFloat((e.amount || "0").replace(/,/g, "")) || 0);
+  }, 0);
+
+  const summaryText = () => {
+    const lines = [];
+    lines.push(`🐟🎉 สรุปยอดรับซื้อวันที่ ${displayDate} 🎉🐟`);
+    lines.push("");
+    entries.forEach((e, idx) => {
+      // ใช้ข้อความเต็มที่บันทึกไว้ตอนกด (ถ้ามี) ไม่งั้น fallback แบบเดิม
+      if (e.fullText) {
+        lines.push(`${idx + 1}.) ${e.fullText}`);
+      } else {
+        lines.push(`(${idx + 1}.) ยอด : ${e.amount}`);
+        if (e.depositNote) lines.push(e.depositNote);
+        lines.push("");
+        (e.products || []).forEach((p) => {
+          lines.push(`ชื่อสินค้า : ${p.name}`);
+          if (p.snMount) {
+            lines.push(`SN เลนส์ : ${cleanSn(p.sn)}`);
+            lines.push(`SN เม้าส์ : ${cleanSn(p.snMount)}`);
+          } else {
+            lines.push(`SN : ${cleanSn(p.sn)}`);
+          }
+          lines.push("");
+        });
+        if (e.buyerSource) lines.push(`ซื้อมาจาก : ${e.buyerSource}`);
+      }
+      lines.push("");
+      lines.push("————————");
+      lines.push("");
+    });
+    lines.push(`รวม ${entries.length} รายการ ยอด ${total.toLocaleString()} บาท`);
+    lines.push(`(นับเฉพาะยอดที่ร้านจ่ายออก ไม่รวมเทรดที่ลูกค้าจ่ายเรา)`);
+    return lines.join("\n").trim();
+  };
+
+  const tabs = [
+    { id: "purchase", label: "รับซื้อ + แจ้งโอนเงิน", icon: Wallet },
+    { id: "summary", label: "สรุปยอดรายวัน", icon: ClipboardList },
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#EDEDE9] text-[#2B2823]" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <div className="bg-[#EDEDE9] border-b border-[#DAD8D1] px-4 pt-4 pb-2">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-8 h-8 rounded-lg bg-[#B5652F] flex items-center justify-center flex-shrink-0">
+            <Camera size={17} className="text-[#FFFFFF]" />
+          </div>
+          <div>
+            <h1 className="text-[15px] font-bold leading-tight">ผู้ช่วยงานรับซื้อกล้อง</h1>
+            <p className="text-[11px] text-[#6E675C] leading-tight">กรอกครั้งเดียว ครบทุกขั้นตอน</p>
+          </div>
+        </div>
+        <div className="flex gap-1.5">
+          {tabs.map((t) => {
+            const Icon = t.icon;
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => {
+                  setTab(t.id);
+                  if (t.id === "summary") {
+                    // ดึงสรุปของวันที่กรอกไว้ในฟอร์มรับซื้อทันที ให้เห็นรายการที่เพิ่งบันทึก
+                    setSummaryDateInput(tf.date);
+                    loadSummaryForDate(tf.date);
+                  }
+                }}
+                className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-[12.5px] font-medium transition-colors ${
+                  active ? "bg-[#B5652F] text-[#FFFFFF]" : "bg-[#F4F3EF] text-[#5A544A]"
+                }`}
+              >
+                <Icon size={14} />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="px-4 py-4 space-y-4 max-w-xl mx-auto pb-24">
+        {/* ===== PURCHASE / TRANSFER TAB (all-in-one) ===== */}
+        {tab === "purchase" && (
+          <>
+            {/* เลือกโหมด: รับซื้อ / เทรด / โอนคืนลูกค้า */}
+            <div className="flex gap-1.5">
+              {[
+                { k: "buy", t: "รับซื้อ" },
+                { k: "trade", t: "เทรด" },
+                { k: "refund", t: "โอนคืน" },
+                { k: "consign", t: "ฝากขาย" },
+              ].map((m) => (
+                <button
+                  key={m.k}
+                  type="button"
+                  onClick={() => {
+                    setTf({ ...tf, mode: m.k });
+                    setSavedToday(false);
+                  }}
+                  className={`flex-1 rounded-lg py-2 text-[11.5px] font-semibold border transition-colors ${
+                    tf.mode === m.k
+                      ? "bg-[#B5652F] border-[#B5652F] text-[#FFFFFF]"
+                      : "bg-[#F4F3EF] border-[#D4D2CB] text-[#5A544A]"
+                  }`}
+                >
+                  {m.t}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="วันที่">
+                  <input
+                    className={inputCls}
+                    value={tf.date}
+                    onChange={(e) => {
+                      setTf({ ...tf, date: e.target.value });
+                      setSavedToday(false);
+                      setCurrentEntryId(null);
+                    }}
+                  />
+                </Field>
+                {tf.mode !== "trade" && tf.mode !== "consign" && !tf.hasDeposit && (
+                  <Field label="ยอดเงิน">
+                    <input
+                      className={inputCls}
+                      placeholder="10,000"
+                      value={tf.amount}
+                      onChange={(e) => {
+                        setTf({ ...tf, amount: e.target.value });
+                        setSavedToday(false);
+                      }}
+                    />
+                  </Field>
+                )}
+              </div>
+
+              {/* ===== โหมดเทรด: สินค้าของร้าน ===== */}
+              {tf.mode === "trade" && (
+                <div className="rounded-lg bg-[#FFFFFF] border border-[#D4D2CB] p-3 space-y-2.5">
+                  <span className="text-[13px] font-semibold text-[#2B2823]">👉 สินค้าของร้าน (ที่ลูกค้าจะได้ไป)</span>
+                  <Field label="ชื่อสินค้าของร้าน">
+                    <input
+                      className={inputCls}
+                      placeholder="เช่น ( Used!! ) Fuji X-T2 Black Box"
+                      value={tf.shopItemName}
+                      onChange={(e) => setTf({ ...tf, shopItemName: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="SN สินค้าของร้าน">
+                    <input
+                      className={inputCls}
+                      placeholder="เช่น 64M53702"
+                      value={tf.shopItemSn}
+                      onChange={(e) => setTf({ ...tf, shopItemSn: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="ลิงก์สินค้าของร้าน (naituanoi.com)">
+                    <input
+                      className={inputCls}
+                      placeholder="https://naituanoi.com/product/..."
+                      value={tf.shopItemLink}
+                      onChange={(e) => setTf({ ...tf, shopItemLink: e.target.value })}
+                    />
+                  </Field>
+                </div>
+              )}
+
+              {/* ===== โหมดโอนคืนลูกค้า: เหตุผล ===== */}
+              {tf.mode === "refund" && (
+                <div>
+                  <span className="block text-xs font-medium text-[#6E675C] mb-1.5 tracking-wide">เนื่องจาก (เลือกเหตุผล)</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {refundReasons.map((r) => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => {
+                          setTf({ ...tf, refundReason: tf.refundReason === r ? "" : r });
+                          setSavedToday(false);
+                        }}
+                        className={`rounded-full px-3 py-1.5 text-[12px] font-medium border transition-colors ${
+                          tf.refundReason === r
+                            ? "bg-[#B5652F] border-[#B5652F] text-[#FFFFFF]"
+                            : "bg-[#F4F3EF] border-[#D4D2CB] text-[#5A544A]"
+                        }`}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <input
+                      className={inputCls}
+                      placeholder="เพิ่มเหตุผลใหม่..."
+                      value={tf.refundReason && !refundReasons.includes(tf.refundReason) ? tf.refundReason : ""}
+                      onChange={(e) => setTf({ ...tf, refundReason: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => rememberRefundReason(tf.refundReason)}
+                      className="flex-shrink-0 rounded-lg bg-[#F4F3EF] border border-[#D4D2CB] text-[#B5652F] font-medium px-3 text-[12px]"
+                    >
+                      จำไว้
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ===== โหมดฝากขาย: รายการสินค้าที่ฝากขาย ===== */}
+              {tf.mode === "consign" && (
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-[#6E675C] tracking-wide">สินค้าที่ลูกค้าฝากขาย</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTf({ ...tf, consignItems: [...(tf.consignItems || []), emptyConsignItem()] });
+                        setSavedToday(false);
+                      }}
+                      className="flex items-center gap-1 text-[12px] text-[#B5652F] font-medium"
+                    >
+                      <Plus size={14} /> เพิ่มสินค้า
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-[#9A9388] -mt-1">ราคาต่ำกว่า 10,000 หัก 20% · 10,000 ขึ้นไป หัก 10% (คำนวณให้อัตโนมัติ)</p>
+                  {(tf.consignItems || []).map((it, idx) => (
+                    <div key={it.id} className="rounded-lg bg-[#FFFFFF] border border-[#D4D2CB] p-3 space-y-2.5 relative">
+                      {tf.consignItems.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setTf({ ...tf, consignItems: tf.consignItems.filter((x) => x.id !== it.id) })
+                          }
+                          className="absolute top-2 right-2 text-[#6E675C] hover:text-[#C0483B] p-1"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                      <span className="text-[12px] font-semibold text-[#B5652F]">ชิ้นที่ {idx + 1}</span>
+                      <Field label="ชื่อสินค้า">
+                        <input
+                          className={inputCls}
+                          placeholder="เช่น DJI RS 4 Gimbal"
+                          value={it.name}
+                          onChange={(e) => {
+                            setTf({
+                              ...tf,
+                              consignItems: tf.consignItems.map((x) => (x.id === it.id ? { ...x, name: e.target.value } : x)),
+                            });
+                            setSavedToday(false);
+                          }}
+                        />
+                      </Field>
+                      <Field label="ราคาขาย">
+                        <input
+                          className={inputCls}
+                          placeholder="เช่น 6,500"
+                          value={it.price}
+                          onChange={(e) => {
+                            setTf({
+                              ...tf,
+                              consignItems: tf.consignItems.map((x) => (x.id === it.id ? { ...x, price: e.target.value } : x)),
+                            });
+                            setSavedToday(false);
+                          }}
+                        />
+                      </Field>
+                      <Field label="% ค่าฝาก (เว้นว่าง = คิดอัตโนมัติตามราคา)">
+                        <input
+                          className={inputCls}
+                          placeholder={parseNum(it.price) >= 10000 ? "อัตโนมัติ 10%" : "อัตโนมัติ 20%"}
+                          value={it.customPct}
+                          onChange={(e) => {
+                            setTf({
+                              ...tf,
+                              consignItems: tf.consignItems.map((x) => (x.id === it.id ? { ...x, customPct: e.target.value } : x)),
+                            });
+                            setSavedToday(false);
+                          }}
+                        />
+                      </Field>
+                      {it.price && (
+                        <div className="rounded-lg bg-[#F6EEE6] border border-[#E8D9C4] px-3 py-2 text-[12.5px] text-[#9A6432]">
+                          หัก {consignPct(it)}% → ได้ {fmtNum(consignNet(it))} บาท
+                        </div>
+                      )}
+                      {!it.noLink && (
+                        <Field label="ลิงก์สินค้า (ถ้ามี)">
+                          <input
+                            className={inputCls}
+                            placeholder="https://naituanoi.com/product/..."
+                            value={it.link}
+                            onChange={(e) => {
+                              setTf({
+                                ...tf,
+                                consignItems: tf.consignItems.map((x) => (x.id === it.id ? { ...x, link: e.target.value } : x)),
+                              });
+                            }}
+                          />
+                        </Field>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setTf({
+                            ...tf,
+                            consignItems: tf.consignItems.map((x) =>
+                              x.id === it.id ? { ...x, noLink: !x.noLink, link: "" } : x
+                            ),
+                          })
+                        }
+                        className="flex items-center gap-2 text-[12px] text-[#6E675C]"
+                      >
+                        <span
+                          className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center ${
+                            it.noLink ? "bg-[#B5652F] border-[#B5652F]" : "border-[#B8B5AC] bg-[#F4F3EF]"
+                          }`}
+                        >
+                          {it.noLink && <Check size={11} className="text-[#FFFFFF]" strokeWidth={3} />}
+                        </span>
+                        ไม่มีลิงก์ในชีท
+                      </button>
+                    </div>
+                  ))}
+                  {consignTotal() > 0 && (
+                    <div className="rounded-lg bg-[#DCEAE2] border border-[#4A8C74] px-3 py-2.5 text-[13px] text-[#3E7A5A] font-semibold text-center">
+                      รวมโอนคืนลูกค้า : {fmtNum(consignTotal())} บาท
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ติ๊กถ้าจ่ายเงินสด — ช่องบัญชี/ธนาคาร/ชื่อ จะซ่อนไป เหลือแค่ยอด (โหมดรับซื้อ) */}
+              {tf.mode === "buy" && (
+              <button
+                onClick={() => {
+                  setTf({ ...tf, isCash: !tf.isCash });
+                  setSavedToday(false);
+                }}
+                className="w-full flex items-center gap-2.5 rounded-lg bg-[#F4F3EF] border border-[#D4D2CB] px-3 py-2.5"
+              >
+                <span
+                  className={`flex-shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                    tf.isCash ? "bg-[#B5652F] border-[#B5652F]" : "border-[#B8B5AC] bg-[#FFFFFF]"
+                  }`}
+                >
+                  {tf.isCash && <Check size={13} className="text-[#FFFFFF]" strokeWidth={3} />}
+                </span>
+                <span className="text-[13px] text-[#3A362F]">จ่ายเงินสด (ไม่มีบัญชี)</span>
+                <span className="text-[11px] text-[#9A9388] ml-auto">ติ๊กแล้วช่องบัญชีจะซ่อน</span>
+              </button>
+              )}
+
+              {/* บัญชี/ธนาคาร/ชื่อ — โหมดรับซื้อ(ถ้าไม่เงินสด) / โอนคืน / ฝากขาย */}
+              {((tf.mode === "buy" && !tf.isCash) || tf.mode === "refund" || tf.mode === "consign") && (
+                <>
+                  <Field label="เลขบัญชี">
+                    <input className={inputCls} value={tf.account} onChange={(e) => setTf({ ...tf, account: e.target.value })} />
+                  </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="ธนาคาร">
+                      <input className={inputCls} value={tf.bank} onChange={(e) => setTf({ ...tf, bank: e.target.value })} />
+                    </Field>
+                    <Field label="ชื่อเจ้าของบัญชี">
+                      <input
+                        className={inputCls}
+                        value={tf.payeeName}
+                        onChange={(e) => setTf({ ...tf, payeeName: e.target.value })}
+                      />
+                    </Field>
+                  </div>
+                </>
+              )}
+
+              {/* หักมัดจำ — โหมดรับซื้อเท่านั้น */}
+              {tf.mode === "buy" && (
+              <button
+                onClick={() => {
+                  setTf({ ...tf, hasDeposit: !tf.hasDeposit });
+                  setSavedToday(false);
+                }}
+                className="w-full flex items-center gap-2.5 rounded-lg bg-[#F4F3EF] border border-[#D4D2CB] px-3 py-2.5"
+              >
+                <span
+                  className={`flex-shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                    tf.hasDeposit ? "bg-[#B5652F] border-[#B5652F]" : "border-[#B8B5AC] bg-[#FFFFFF]"
+                  }`}
+                >
+                  {tf.hasDeposit && <Check size={13} className="text-[#FFFFFF]" strokeWidth={3} />}
+                </span>
+                <span className="text-[13px] text-[#3A362F]">มีหักมัดจำ (ลูกค้าลืมอุปกรณ์ ส่งตามทีหลัง)</span>
+              </button>
+              )}
+
+              {tf.hasDeposit && (
+                <div className="rounded-lg bg-[#FFFFFF] border border-[#D4D2CB] p-3 space-y-2.5">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="ยอดจริง (ก่อนหัก)">
+                      <input
+                        className={inputCls}
+                        placeholder="21,000"
+                        value={tf.realAmount}
+                        onChange={(e) => {
+                          setTf({ ...tf, realAmount: e.target.value });
+                          setSavedToday(false);
+                        }}
+                      />
+                    </Field>
+                    <Field label="จำนวนที่หัก">
+                      <input
+                        className={inputCls}
+                        placeholder="1,000"
+                        value={tf.depositAmount}
+                        onChange={(e) => {
+                          setTf({ ...tf, depositAmount: e.target.value });
+                          setSavedToday(false);
+                        }}
+                      />
+                    </Field>
+                  </div>
+                  <Field label="หักมัดจำอะไร">
+                    <input
+                      className={inputCls}
+                      placeholder="เช่น ค่าแท่นชาร์จ"
+                      value={tf.depositReason}
+                      onChange={(e) => {
+                        setTf({ ...tf, depositReason: e.target.value });
+                        setSavedToday(false);
+                      }}
+                    />
+                  </Field>
+                  {(tf.realAmount || tf.depositAmount) && (
+                    <div className="rounded-lg bg-[#F6EEE6] border border-[#E8D9C4] px-3 py-2 text-[13px] text-[#9A6432]">
+                      ยอดจ่ายจริง : {fmtNum(finalAmount())} บาท
+                      <div className="text-[11.5px] text-[#6E675C] mt-0.5">{depositNoteLine()}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* สินค้า — โหมดรับซื้อ และ เทรด (โหมดเทรดคือสินค้าที่ลูกค้าเอามาเทรด) */}
+              {(tf.mode === "buy" || tf.mode === "trade") && (
+              <div className="space-y-2.5 pt-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-[#6E675C] tracking-wide">
+                    {tf.mode === "trade" ? "สินค้าที่ลูกค้าเอามาเทรด" : "สินค้า"}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setTfProducts([...tfProducts, emptyProduct()]);
+                      setSavedToday(false);
+                    }}
+                    className="flex items-center gap-1 text-[12px] text-[#B5652F] font-medium"
+                  >
+                    <Plus size={14} /> เพิ่มสินค้า
+                  </button>
+                </div>
+                {tfProducts.map((p, idx) => (
+                  <SimpleProductBlock
+                    key={p.id}
+                    product={p}
+                    index={idx}
+                    showRemove={tfProducts.length > 1}
+                    showSellMode={tfProducts.length > 1 && idx > 0}
+                    history={productHistory}
+                    onChange={(np) => {
+                      setTfProducts(tfProducts.map((x) => (x.id === p.id ? np : x)));
+                      setSavedToday(false);
+                    }}
+                    onRemove={() => setTfProducts(tfProducts.filter((x) => x.id !== p.id))}
+                  />
+                ))}
+              </div>
+              )}
+
+              {/* ซื้อมาจาก / จาก — ทุกโหมด (label ต่างกัน) */}
+              <Field label={tf.mode === "refund" ? "จาก (เซลล์ที่ทำรายการ)" : tf.mode === "consign" ? "มาจาก" : "ซื้อมาจาก"}>
+                <input
+                  className={inputCls}
+                  placeholder="เช่น FCam : ธีรดล ญ."
+                  value={tf.buyerSource}
+                  onChange={(e) => setTf({ ...tf, buyerSource: e.target.value })}
+                />
+              </Field>
+
+              {/* ยอดส่วนต่าง — โหมดเทรดเท่านั้น */}
+              {tf.mode === "trade" && (
+                <>
+                  <div>
+                    <span className="block text-xs font-medium text-[#6E675C] mb-1.5 tracking-wide">ทิศทางส่วนต่าง</span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTf({ ...tf, tradeDir: "customerPays" });
+                          setSavedToday(false);
+                        }}
+                        className={`flex-1 rounded-lg py-2 text-[12px] font-medium border transition-colors ${
+                          tf.tradeDir === "customerPays"
+                            ? "bg-[#B5652F] border-[#B5652F] text-[#FFFFFF]"
+                            : "bg-[#F4F3EF] border-[#D4D2CB] text-[#5A544A]"
+                        }`}
+                      >
+                        ลูกค้าจ่ายเรา
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTf({ ...tf, tradeDir: "shopPays" });
+                          setSavedToday(false);
+                        }}
+                        className={`flex-1 rounded-lg py-2 text-[12px] font-medium border transition-colors ${
+                          tf.tradeDir === "shopPays"
+                            ? "bg-[#B5652F] border-[#B5652F] text-[#FFFFFF]"
+                            : "bg-[#F4F3EF] border-[#D4D2CB] text-[#5A544A]"
+                        }`}
+                      >
+                        เราจ่ายลูกค้า
+                      </button>
+                    </div>
+                  </div>
+                  <Field label={tf.tradeDir === "shopPays" ? "ยอดส่วนต่าง (เราจ่ายลูกค้า)" : "ยอดส่วนต่าง (ลูกค้าจ่ายเรา)"}>
+                    <input
+                      className={inputCls}
+                      placeholder="เช่น 23,380"
+                      value={tf.tradeDiffAmount}
+                      onChange={(e) => {
+                        setTf({ ...tf, tradeDiffAmount: e.target.value });
+                        setSavedToday(false);
+                      }}
+                    />
+                  </Field>
+                  {/* เราจ่ายลูกค้า → ต้องมีบัญชีลูกค้า */}
+                  {tf.tradeDir === "shopPays" && (
+                    <>
+                      <Field label="เลขบัญชีลูกค้า">
+                        <input className={inputCls} value={tf.account} onChange={(e) => setTf({ ...tf, account: e.target.value })} />
+                      </Field>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="ธนาคาร">
+                          <input className={inputCls} value={tf.bank} onChange={(e) => setTf({ ...tf, bank: e.target.value })} />
+                        </Field>
+                        <Field label="ชื่อบัญชี">
+                          <input className={inputCls} value={tf.payeeName} onChange={(e) => setTf({ ...tf, payeeName: e.target.value })} />
+                        </Field>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* ของสมนาคุณ — โหมดรับซื้อเท่านั้น */}
+              {tf.mode === "buy" && (
+              <div>
+                <span className="block text-xs font-medium text-[#6E675C] mb-1.5 tracking-wide">
+                  ของสมนาคุณ (ถ้ามี — ไม่เลือกก็ได้)
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {GIFT_ITEMS.map((g) => (
+                    <button
+                      key={g.key}
+                      type="button"
+                      onClick={() => {
+                        setTf((prev) => ({
+                          ...prev,
+                          giftItem: prev.giftItem === g.key ? "" : g.key,
+                          giftColor: "",
+                        }));
+                        setSavedToday(false);
+                      }}
+                      className={`rounded-full px-3 py-1.5 text-[12px] font-medium border transition-colors ${
+                        tf.giftItem === g.key
+                          ? "bg-[#B5652F] border-[#B5652F] text-[#FFFFFF]"
+                          : "bg-[#F4F3EF] border-[#D4D2CB] text-[#5A544A]"
+                      }`}
+                    >
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* สี — ขึ้นเฉพาะของที่มีสีให้เลือก */}
+                {tf.giftItem && giftColorsFor(tf.giftItem).length > 0 && (
+                  <div className="mt-2.5">
+                    <span className="block text-[11px] text-[#9A9388] mb-1.5">
+                      เลือกสี{tf.giftColor ? ` — เลือก "${tf.giftColor}" แล้ว` : " (ยังไม่ได้เลือก)"}
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {giftColorsFor(tf.giftItem).map((c) => {
+                        const active = tf.giftColor === c;
+                        return (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => {
+                              setTf((prev) => ({ ...prev, giftColor: prev.giftColor === c ? "" : c }));
+                              setSavedToday(false);
+                            }}
+                            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-medium border transition-colors ${
+                              active
+                                ? "bg-[#B5652F] border-[#B5652F] text-[#FFFFFF]"
+                                : "bg-[#F4F3EF] border-[#D4D2CB] text-[#5A544A]"
+                            }`}
+                          >
+                            {active && <Check size={13} strokeWidth={3} />}
+                            {c}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+              )}
+
+              <Field label="เซลล์ผู้ปิดการขาย">
+                <input
+                  className={inputCls}
+                  placeholder="เช่น จี้"
+                  value={tf.salesName}
+                  onChange={(e) => setTf({ ...tf, salesName: e.target.value })}
+                />
+              </Field>
+            </div>
+
+            {/* เช็คอาการสินค้า — โหมดรับซื้อ และ เทรด */}
+            {(tf.mode === "buy" || tf.mode === "trade") && (
+            <>
+            <div className="space-y-2">
+              <span className="text-[13.5px] font-semibold text-[#2B2823]">เช็คอาการสินค้า</span>
+              {tfProducts
+                .filter((p) => p.name || p.sn)
+                .map((p) => (
+                  <ConditionCard
+                    key={p.id}
+                    product={p}
+                    conditionHistory={conditionHistory}
+                    onChange={(np) => setTfProducts(tfProducts.map((x) => (x.id === p.id ? np : x)))}
+                  />
+                ))}
+              {tfProducts.filter((p) => p.name || p.sn).length === 0 && (
+                <p className="text-[13px] text-[#9A9388]">กรอกชื่อสินค้าด้านบนก่อน จะมาให้ติ๊กอาการตรงนี้ค่ะ</p>
+              )}
+            </div>
+
+            {/* ข้อความแจ้งอาการ — ส่งทีมเช็คตำหนิ */}
+            {tfProducts.some((p) => p.name || p.sn) && (
+              <div className="rounded-xl bg-[#FFFFFF] border border-[#D4D2CB] p-3.5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-[#6E675C]">ข้อความแจ้งอาการ (ส่งทีมเช็คตำหนิ)</span>
+                  <CopyBtn text={issueText()} label="คัดลอก" />
+                </div>
+                <pre className="whitespace-pre-wrap text-[13px] leading-relaxed text-[#5A544A] font-sans">{issueText()}</pre>
+              </div>
+            )}
+            </>
+            )}
+
+            <div className="h-px bg-[#DAD8D1] my-2" />
+
+            {/* ข้อความ (เปลี่ยนตามโหมด) */}
+            <div className="rounded-xl bg-[#FFFFFF] border border-[#D4D2CB] p-3.5">
+              <span className="text-xs font-medium text-[#6E675C]">
+                {tf.mode === "trade"
+                  ? "ข้อความแจ้งเทรด"
+                  : tf.mode === "refund"
+                  ? "ข้อความโอนคืนลูกค้า"
+                  : tf.mode === "consign"
+                  ? "ข้อความโอนเงินฝากขาย"
+                  : "ข้อความแจ้งโอนเงิน"}
+              </span>
+              <pre className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-[#3A362F] font-sans mt-2">{mainText()}</pre>
+            </div>
+
+            {/* ปุ่มเดียว: คัดลอกข้อความ + บันทึกเข้าสรุปยอด พร้อมกัน */}
+            <CopySaveButton
+              text={mainText()}
+              onSave={saveTransferToLog}
+              savedToday={savedToday}
+            />
+
+            {savedToday && (
+              <button
+                onClick={startNewEntry}
+                className="w-full flex items-center justify-center gap-2 rounded-xl font-semibold py-3 text-[14px] text-[#B5652F] border border-[#B5652F]/40 bg-[#F6EEE6]"
+              >
+                <Plus size={16} /> เริ่มรายการใหม่ (ลูกค้าคนถัดไป)
+              </button>
+            )}
+
+            <ClearFormButton onClear={startNewEntry} />
+          </>
+        )}
+
+        {/* ===== SUMMARY TAB ===== */}
+        {tab === "summary" && (
+          <>
+            <div className="rounded-xl border border-[#D4D2CB] bg-[#FFFFFF] p-3.5 space-y-2.5">
+              <div>
+                <span className="block text-xs font-medium text-[#6E675C] mb-1.5 tracking-wide">แจ้งสรุปรับซื้อวันที่</span>
+                <div className="flex gap-2">
+                  <input
+                    className={inputCls}
+                    placeholder="3/7/2026"
+                    value={summaryDateInput}
+                    onChange={(e) => setSummaryDateInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && loadSummaryForDate(summaryDateInput)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => loadSummaryForDate(summaryDateInput)}
+                    className="flex-shrink-0 flex items-center justify-center gap-1.5 rounded-lg bg-[#B5652F] hover:bg-[#9E5526] text-[#FFFFFF] font-semibold px-4 text-sm"
+                  >
+                    <Search size={15} /> ค้นหา
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-[11.5px] text-[#9A9388] flex-1 pr-2">
+                  ข้อมูลรวมทุกเครื่อง กดรีเฟรชเพื่อดึงรายการล่าสุดที่เครื่องอื่นบันทึกไว้
+                </p>
+                <button
+                  type="button"
+                  onClick={refreshFromCloud}
+                  disabled={syncing}
+                  className="flex-shrink-0 flex items-center gap-1.5 rounded-lg bg-[#F4F3EF] border border-[#D4D2CB] text-[#B5652F] font-medium px-3 py-1.5 text-[12px]"
+                >
+                  <RotateCcw size={13} className={syncing ? "animate-spin" : ""} />
+                  {syncing ? "กำลังโหลด..." : "รีเฟรช"}
+                </button>
+              </div>
+
+              {/* วันที่มีข้อมูลบันทึกไว้ — แตะเลือกได้เลย ไม่ต้องพิมพ์ */}
+              {(() => {
+                const datesWithData = Object.keys(purchasesByDate).filter(
+                  (k) => (purchasesByDate[k] || []).length > 0
+                );
+                if (datesWithData.length === 0) return null;
+                datesWithData.sort().reverse();
+                return (
+                  <div>
+                    <span className="block text-[11px] text-[#9A9388] mb-1.5">วันที่มีรายการบันทึกไว้ (แตะเพื่อดู)</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {datesWithData.map((k) => {
+                        const [y, m, d] = k.split("-");
+                        const thai = `${d}/${m}/${y}`;
+                        const active = loadedKey === k;
+                        return (
+                          <button
+                            key={k}
+                            type="button"
+                            onClick={() => {
+                              setSummaryDateInput(thai);
+                              setLoadedKey(k);
+                            }}
+                            className={`rounded-lg px-3 py-1.5 text-[12px] font-medium border transition-colors ${
+                              active
+                                ? "bg-[#B5652F] border-[#B5652F] text-[#FFFFFF]"
+                                : "bg-[#F4F3EF] border-[#D4D2CB] text-[#5A544A]"
+                            }`}
+                          >
+                            {thai} ({purchasesByDate[k].length})
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {entries.length > 0 && (
+              <div className="space-y-2">
+                <span className="text-xs font-medium text-[#6E675C] tracking-wide">
+                  รายการวันที่ {displayDate} ({entries.length})
+                </span>
+                {entries.map((e, idx) => (
+                  <div key={e.id} className="rounded-lg bg-[#FFFFFF] border border-[#D4D2CB] p-3 text-[13px] relative">
+                    <button
+                      onClick={() => removeEntry(e.id)}
+                      className="absolute top-2 right-2 text-[#6E675C] hover:text-[#C0483B] p-1"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                    <div className="font-semibold text-[#B5652F] flex items-center gap-2">
+                      <span>({idx + 1}) ยอด: {e.amount || "-"}</span>
+                      {e.mode === "trade" && <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#D6EBDD] text-[#3E7A5A]">เทรด</span>}
+                      {e.mode === "refund" && <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#E8D9C4] text-[#9A6432]">โอนคืน</span>}
+                      {e.mode === "consign" && <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#E8D9C4] text-[#9A6432]">ฝากขาย</span>}
+                    </div>
+                    {e.mode === "trade" && e.shopItemName && (
+                      <div className="text-[#6E675C] mt-0.5">ของร้าน: {e.shopItemName}</div>
+                    )}
+                    {e.mode === "refund" && e.refundReason && (
+                      <div className="text-[#6E675C] mt-0.5">เหตุผล: {e.refundReason}</div>
+                    )}
+                    {e.products.map((p) => (
+                      <div key={p.id} className="text-[#5A544A] mt-0.5">
+                        {p.name} {p.sn && `· SN ${cleanSn(p.sn)}`}
+                        {p.sellMode && (
+                          <span className="text-[#B5652F]">
+                            {" "}
+                            · {p.sellMode === "separate" ? "แยกขาย" : "ขายคู่"}
+                          </span>
+                        )}
+                        {p.sendRepair && <span className="text-[#C0483B]"> · ส่งซ่อม</span>}
+                      </div>
+                    ))}
+                    {e.buyerSource && <div className="text-[#6E675C] mt-0.5">ซื้อจาก: {e.buyerSource}</div>}
+                    {e.salesName && <div className="text-[#6E675C]">ผู้รับซื้อ: {e.salesName}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="rounded-xl bg-[#FFFFFF] border border-[#D4D2CB] p-3.5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-[#6E675C]">สรุปยอดพร้อมส่ง</span>
+                <CopyBtn text={summaryText()} label="คัดลอกสรุป" />
+              </div>
+              {entries.length === 0 ? (
+                <p className="text-[13px] text-[#9A9388]">
+                  ยังไม่มีรายการของวันนี้ — ไปกรอกที่แท็บ "รับซื้อ + แจ้งโอนเงิน" แล้วกดบันทึกเข้าสรุปยอดก่อนนะคะ
+                </p>
+              ) : (
+                <pre className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-[#3A362F] font-sans">{summaryText()}</pre>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {toast && (
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 bg-[#2B2823] border border-[#2B2823] text-white text-[13px] px-4 py-2 rounded-full shadow-lg z-20">
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// mount
+const rootEl=document.getElementById("root");
+ReactDOM.createRoot(rootEl).render(<App />);
+
+</script>
+</body>
+</html>
