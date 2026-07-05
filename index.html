@@ -13,6 +13,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
   html, body { margin: 0; padding: 0; background: #EDEDE9; -webkit-tap-highlight-color: transparent; }
   * { -webkit-user-select: none; user-select: none; }
@@ -143,6 +149,23 @@ const supa = {
     });
     if (!res.ok) throw new Error("delete failed " + res.status);
   },
+  // ===== ประวัติชื่อสินค้า (ใช้ร่วมทุกเครื่อง) =====
+  async fetchNames() {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/camera_product_names?select=name,type&order=updated_at.desc&limit=2000`,
+      { headers: this.headers() }
+    );
+    if (!res.ok) throw new Error("fetch names failed " + res.status);
+    return await res.json();
+  },
+  async saveName(name, type) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/camera_product_names?on_conflict=name`, {
+      method: "POST",
+      headers: { ...this.headers(), Prefer: "resolution=merge-duplicates" },
+      body: JSON.stringify([{ name, type: type || "", updated_at: new Date().toISOString() }]),
+    });
+    if (!res.ok) throw new Error("save name failed " + res.status);
+  },
 };
 
 // ---------- condition checklist definitions, split by product type ----------
@@ -194,11 +217,14 @@ const emptyProduct = () => ({
   id: crypto.randomUUID(),
   name: "",
   sn: "",
+  price: "", // ราคาต่อชิ้น (สำหรับใบเสร็จ)
   hasMountSn: false, // เปิดช่อง SN เม้าส์เมื่อจำเป็น (บางรุ่นเช่น Canon)
   snMount: "", // SN เม้าส์ (เว้นว่างได้ — บางรุ่นเช่น Canon มี SN เลนส์ + SN เม้าส์)
   type: "", // "body" | "lens" | ""
   typeManual: false, // true once the person picks a type by hand, to stop auto-detect overwriting it
-  sellMode: "", // "together" | "separate" | ""
+  sellMode: "", // (เดิม) เก็บไว้เผื่อ backward compat
+  setGroup: 0, // 0 = ขายเดี่ยว/แยก, 1/2/3... = อยู่ชุดไหน (ชุดเดียวกัน = ขายคู่)
+  isMainManual: false, // true = คนกดเลือกให้เป็นตัวหลักเอง (กรณีชุดมี 2 กล้อง)
   issues: {}, // issueKey -> { checked: bool, f: string }
   otherCondition: "",
   sensorCleaned: false,
@@ -228,11 +254,17 @@ const emptyTf = () => ({
   shopItemSn: "", // SN สินค้าของร้าน
   shopItemLink: "", // ลิงก์สินค้าของร้าน (naituanoi.com)
   tradeDiffAmount: "", // ยอดส่วนต่าง
-  tradeDir: "customerPays", // "customerPays" (ลูกค้าจ่ายเรา) | "shopPays" (เราจ่ายลูกค้า)
+  tradeDir: "customerPays", // "customerPays" (ลูกค้าจ่ายเรา) | "shopPays" (เราจ่ายลูกค้า) | "noDiff" (ไม่มีส่วนต่าง)
   // ===== โหมดโอนคืนลูกค้า =====
   refundReason: "", // เหตุผลโอนคืน
   // ===== โหมดฝากขาย =====
   consignItems: [emptyConsignItem()], // รายการสินค้าฝากขาย
+  // ===== ข้อมูลลูกค้า (สำหรับเอกสาร/ใบเสร็จ) =====
+  custName: "", // ชื่อ-นามสกุลลูกค้า
+  custId: "", // เลขบัตรประชาชน
+  custAddr: "", // ที่อยู่
+  custPhone: "", // เบอร์โทร
+  custSignature: "", // ลายเซ็นลูกค้า (dataURL รูปภาพ)
 });
 
 function emptyConsignItem() {
@@ -359,16 +391,47 @@ function buildConditionLines(product) {
   return lines;
 }
 
+// คำนวณ label การขาย (ขายคู่/แยก) จากการจับชุด (setGroup)
+// คืน map: productId -> { suffix } เช่น " (ขายคู่กับ Canon 600D)" หรือ " (แยกขาย)"
+function computeSetLabels(products) {
+  const labels = {};
+  // จัดกลุ่มตาม setGroup ที่ > 0
+  const groups = {};
+  products.forEach((p) => {
+    if (p.setGroup && p.setGroup > 0) {
+      if (!groups[p.setGroup]) groups[p.setGroup] = [];
+      groups[p.setGroup].push(p);
+    }
+  });
+  // หาตัวหลักของแต่ละชุด: คนที่กดเลือกเอง > กล้อง(body) > ตัวแรกในชุด
+  const mainOf = {};
+  Object.entries(groups).forEach(([g, list]) => {
+    let main = list.find((p) => p.isMainManual);
+    if (!main) main = list.find((p) => p.type === "body");
+    if (!main) main = list[0];
+    mainOf[g] = main;
+  });
+  products.forEach((p) => {
+    if (!p.setGroup || p.setGroup <= 0) {
+      // ขายเดี่ยว/แยก — ใส่ "(แยกขาย)" เฉพาะเมื่อมีหลายสินค้าในบิล
+      labels[p.id] = products.length > 1 ? " (แยกขาย)" : "";
+      return;
+    }
+    const main = mainOf[p.setGroup];
+    if (main && main.id === p.id) {
+      labels[p.id] = ""; // ตัวหลัก ไม่ต้องมี suffix
+    } else {
+      const mn = main?.name || "ตัวหลัก";
+      labels[p.id] = ` (ขายคู่กับ ${mn})`;
+    }
+  });
+  return labels;
+}
+
 // ข้อความแจ้งอาการต่อ 1 สินค้า สำหรับส่งทีมเช็คตำหนิ
-function productIssueMessage(product, mainName) {
+function productIssueMessage(product, setSuffix) {
   const lines = [];
-  // หัว: ชื่อสินค้า (+ บอกขายคู่/แยก ถ้าไม่ใช่ตัวหลัก)
-  let header = product.name || "(ไม่ระบุชื่อ)";
-  if (product.sellMode === "together") {
-    header += mainName ? ` (ขายคู่กับตัวหลัก ${mainName})` : " (ขายคู่กับตัวหลัก)";
-  } else if (product.sellMode === "separate") {
-    header += " (แยกขาย)";
-  }
+  let header = (product.name || "(ไม่ระบุชื่อ)") + (setSuffix || "");
   lines.push(header);
   if (product.snMount) {
     lines.push(`SN เลนส์ : ${cleanSn(product.sn)}`);
@@ -497,12 +560,6 @@ function SimpleProductBlock({ product, onChange, onRemove, showRemove, showSellM
         </button>
       )}
 
-      {index === 0 && showRemove && (
-        <div className="flex items-center gap-1.5 text-[11px] text-[#3E7A5A]">
-          <Check size={12} strokeWidth={3} /> ชิ้นนี้คือตัวหลัก
-        </div>
-      )}
-
       <div className="relative">
         <Field label="ชื่อสินค้า">
           <input
@@ -538,12 +595,32 @@ function SimpleProductBlock({ product, onChange, onRemove, showRemove, showSellM
         )}
       </div>
 
+      {/* ปุ่มค้นหา unbox ใน YouTube — เช็คว่าอุปกรณ์ในกล่องครบไหม */}
+      {product.name.trim() && (
+        <a
+          href={`https://www.youtube.com/results?search_query=${encodeURIComponent(product.name.trim() + " unboxing")}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-1.5 rounded-lg bg-[#F4F3EF] border border-[#D4D2CB] text-[#B5652F] font-medium py-2 text-[12.5px]"
+        >
+          <Search size={14} /> หา unbox "{product.name.trim()}" ใน YouTube
+        </a>
+      )}
+
       <Field label="Serial Number (SN)">
         <input
           className={inputCls}
           placeholder="เช่น 398072010884"
           value={product.sn}
           onChange={(e) => onChange({ ...product, sn: e.target.value })}
+        />
+      </Field>
+      <Field label="ราคาชิ้นนี้ (สำหรับใบเสร็จ — ไม่กรอกก็ได้)">
+        <input
+          className={inputCls}
+          placeholder="เช่น 16,000"
+          value={product.price}
+          onChange={(e) => onChange({ ...product, price: e.target.value })}
         />
       </Field>
       {!product.hasMountSn ? (
@@ -573,29 +650,39 @@ function SimpleProductBlock({ product, onChange, onRemove, showRemove, showSellM
       )}
       {showSellMode && (
         <div>
-          <span className="block text-xs font-medium text-[#6E675C] mb-1.5 tracking-wide">ชิ้นนี้ขายยังไง</span>
-          <div className="flex gap-2">
+          <span className="block text-xs font-medium text-[#6E675C] mb-1.5 tracking-wide">
+            ชิ้นนี้ขายยังไง (จับชุด = ขายคู่กัน)
+          </span>
+          <div className="flex flex-wrap gap-1.5">
             <button
-              onClick={() => onChange({ ...product, sellMode: product.sellMode === "together" ? "" : "together" })}
-              className={`flex-1 rounded-lg py-2 text-[12px] font-medium border transition-colors ${
-                product.sellMode === "together"
+              type="button"
+              onClick={() => onChange({ ...product, setGroup: 0, isMainManual: false })}
+              className={`rounded-lg px-3 py-1.5 text-[12px] font-medium border transition-colors ${
+                !product.setGroup
                   ? "bg-[#B5652F] border-[#B5652F] text-[#FFFFFF]"
                   : "bg-[#F4F3EF] border-[#D4D2CB] text-[#5A544A]"
               }`}
             >
-              ขายคู่กับตัวหลัก
+              ขายเดี่ยว
             </button>
-            <button
-              onClick={() => onChange({ ...product, sellMode: product.sellMode === "separate" ? "" : "separate" })}
-              className={`flex-1 rounded-lg py-2 text-[12px] font-medium border transition-colors ${
-                product.sellMode === "separate"
-                  ? "bg-[#B5652F] border-[#B5652F] text-[#FFFFFF]"
-                  : "bg-[#F4F3EF] border-[#D4D2CB] text-[#5A544A]"
-              }`}
-            >
-              แยกขายต่างหาก
-            </button>
+            {[1, 2, 3].map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => onChange({ ...product, setGroup: g })}
+                className={`rounded-lg px-3 py-1.5 text-[12px] font-medium border transition-colors ${
+                  product.setGroup === g
+                    ? "bg-[#B5652F] border-[#B5652F] text-[#FFFFFF]"
+                    : "bg-[#F4F3EF] border-[#D4D2CB] text-[#5A544A]"
+                }`}
+              >
+                ชุด {g}
+              </button>
+            ))}
           </div>
+          <p className="text-[11px] text-[#9A9388] mt-1">
+            สินค้าที่อยู่ "ชุด" เดียวกัน = ขายคู่กัน (กล้องเป็นตัวหลักอัตโนมัติ)
+          </p>
         </div>
       )}
     </div>
@@ -741,6 +828,93 @@ function ClearFormButton({ onClear }) {
   );
 }
 
+// ---------- ช่องเซ็นชื่อด้วยนิ้ว/ปากกา ----------
+function SignaturePad({ value, onChange }) {
+  const canvasRef = useRef(null);
+  const drawing = useRef(false);
+  const last = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (value) {
+      const img = new Image();
+      img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      img.src = value;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const pos = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return {
+      x: ((t.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((t.clientY - rect.top) / rect.height) * canvas.height,
+    };
+  };
+
+  const start = (e) => {
+    e.preventDefault();
+    drawing.current = true;
+    last.current = pos(e);
+  };
+  const move = (e) => {
+    if (!drawing.current) return;
+    e.preventDefault();
+    const ctx = canvasRef.current.getContext("2d");
+    const p = pos(e);
+    ctx.strokeStyle = "#1A1A1A";
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(last.current.x, last.current.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    last.current = p;
+  };
+  const end = () => {
+    if (!drawing.current) return;
+    drawing.current = false;
+    onChange(canvasRef.current.toDataURL("image/png"));
+  };
+  const clear = () => {
+    const ctx = canvasRef.current.getContext("2d");
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    onChange("");
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-medium text-[#6E675C] tracking-wide">ลายเซ็นลูกค้า (เซ็นด้วยนิ้ว)</span>
+        <button type="button" onClick={clear} className="text-[12px] text-[#B5652F] font-medium">
+          ล้าง
+        </button>
+      </div>
+      <canvas
+        ref={canvasRef}
+        width={600}
+        height={200}
+        className="w-full rounded-lg border border-[#D4D2CB] bg-white touch-none"
+        style={{ height: "140px" }}
+        onMouseDown={start}
+        onMouseMove={move}
+        onMouseUp={end}
+        onMouseLeave={end}
+        onTouchStart={start}
+        onTouchMove={move}
+        onTouchEnd={end}
+      />
+    </div>
+  );
+}
+
 // ---------- main ----------
 function App() {
   const [tab, setTab] = useState("purchase");
@@ -762,6 +936,7 @@ function App() {
   // ข้อมูลกลางเก็บที่ Supabase (ทุกเครื่องเห็นรวมกัน) + สำเนาไว้ในเครื่องกันเน็ตหลุด
   const [purchasesByDate, setPurchasesByDate] = useState({});
   const [syncing, setSyncing] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
 
   const loadFromLocal = useCallback(() => {
     try {
@@ -809,10 +984,22 @@ function App() {
   const [productHistory, setProductHistory] = useState([]); // [{ name, type }]
 
   useEffect(() => {
+    // โหลดจากเครื่องก่อน (เร็ว) แล้วดึงของกลางจาก Supabase มาทับ (ทุกเครื่องเห็นชื่อรวมกัน)
     try {
       const v = store.get("product-history");
       if (v) setProductHistory(JSON.parse(v));
     } catch (e) {}
+    (async () => {
+      try {
+        const rows = await supa.fetchNames();
+        if (Array.isArray(rows) && rows.length) {
+          setProductHistory(rows.map((r) => ({ name: r.name, type: r.type || "" })));
+          try {
+            store.set("product-history", JSON.stringify(rows.map((r) => ({ name: r.name, type: r.type || "" }))));
+          } catch (e) {}
+        }
+      } catch (e) {}
+    })();
   }, []);
 
   const rememberProductName = useCallback((name, type) => {
@@ -824,6 +1011,8 @@ function App() {
       store.set("product-history", JSON.stringify(next));
       return next;
     });
+    // เก็บขึ้นฐานข้อมูลกลาง (ทุกเครื่องเห็น)
+    supa.saveName(trimmed, type).catch(() => {});
   }, []);
 
   // ===== Custom condition history (learns new symptoms typed in "อาการอื่นๆ") =====
@@ -913,21 +1102,24 @@ function App() {
     return parseNum(tf.amount);
   };
 
-  // บรรทัดหมายเหตุหักมัดจำ มี ❌ ปิดหน้า-ปิดหลัง
+  // บรรทัดหมายเหตุหักมัดจำ มี ❌ ปิดหน้า-ปิดหลัง + บรรทัดโอนคืนถ้าส่งอุปกรณ์มา
   const depositNoteLine = () => {
     if (!tf.hasDeposit) return "";
     const real = parseNum(tf.realAmount);
     const dep = parseNum(tf.depositAmount);
     const reason = tf.depositReason || "มัดจำ";
-    return `❌ยอดจริง ${fmtNum(real)} หักมัดจำ${reason} : ${fmtNum(dep)} = ${fmtNum(real - dep)}❌`;
+    return (
+      `❌ยอดจริง ${fmtNum(real)} หักมัดจำ[${reason}] : ${fmtNum(dep)} = ${fmtNum(real - dep)}❌\n` +
+      `‼️ถ้าลูกค้าส่งอุปกรณ์มา ร้านโอนคืน ${fmtNum(dep)}‼️`
+    );
   };
 
   // ข้อความแจ้งอาการทั้งหมด ส่งทีมเช็คตำหนิ
   const issueText = () => {
     const prods = tfProducts.filter((p) => p.name || p.sn);
     if (prods.length === 0) return "";
-    const mainName = prods[0]?.name || "";
-    return prods.map((p, idx) => productIssueMessage(p, idx === 0 ? "" : mainName)).join("\n\n");
+    const labels = computeSetLabels(prods);
+    return prods.map((p) => productIssueMessage(p, labels[p.id])).join("\n\n");
   };
 
   const transferText = () => {
@@ -1000,8 +1192,21 @@ function App() {
     lines.push(`ซื้อมาจาก : ${tf.buyerSource}`);
     lines.push("");
     lines.push("👉🏻ยอดส่วนต่าง");
-    if (tf.tradeDir === "shopPays") {
-      lines.push(`เราจ่ายให้ลูกค้า ${tf.tradeDiffAmount} บาท`);
+    if (tf.tradeDir === "noDiff") {
+      lines.push("");
+      lines.push("ไม่มียอดส่วนต่าง (ยอดเทรดเท่าราคาสินค้า)");
+    } else if (tf.tradeDir === "shopPays") {
+      // เราจ่ายลูกค้า
+      if (tf.hasDeposit) {
+        const real = parseNum(tf.realAmount);
+        const dep = parseNum(tf.depositAmount);
+        const reason = tf.depositReason || "มัดจำ";
+        lines.push(`เราจ่ายให้ลูกค้า ${fmtNum(real - dep)} บาท`);
+        lines.push(`❌ยอดจริง ${fmtNum(real)} หักมัดจำ[${reason}] : ${fmtNum(dep)} = ${fmtNum(real - dep)}❌`);
+        lines.push(`‼️ถ้าลูกค้าส่งอุปกรณ์มา ร้านโอนคืน ${fmtNum(dep)}‼️`);
+      } else {
+        lines.push(`เราจ่ายให้ลูกค้า ${tf.tradeDiffAmount} บาท`);
+      }
       // เราจ่าย ต้องมีบัญชีลูกค้า
       if (tf.account || tf.bank || tf.payeeName) {
         lines.push("");
@@ -1010,9 +1215,21 @@ function App() {
         if (tf.payeeName) lines.push(`ชื่อ : ${tf.payeeName}`);
       }
     } else {
+      // ลูกค้าจ่ายเรา
       lines.push("");
-      lines.push(`ลูกค้าจ่ายให้เรา ${tf.tradeDiffAmount} บาท`);
+      if (tf.hasDeposit) {
+        const base = parseNum(tf.realAmount); // ยอดก่อนบวก
+        const add = parseNum(tf.depositAmount); // ค่าอุปกรณ์ที่ขาด
+        const reason = tf.depositReason || "อุปกรณ์";
+        const total = base + add;
+        lines.push(`ลูกค้าจ่ายให้เรา ${fmtNum(total)} บาท`);
+        lines.push(`❌ยอดจริง ${fmtNum(base)} + ค่าอุปกรณ์ที่ขาด[${reason}] ${fmtNum(add)} = ${fmtNum(total)}❌`);
+        lines.push(`‼️ถ้าลูกค้าส่งอุปกรณ์มา ร้านโอนคืน ${fmtNum(add)}‼️`);
+      } else {
+        lines.push(`ลูกค้าจ่ายให้เรา ${tf.tradeDiffAmount} บาท`);
+      }
     }
+    // หักมัดจำ (แสดงในบล็อกยอดส่วนต่างแล้ว)
     if (tf.salesName) {
       lines.push("");
       lines.push(tf.salesName);
@@ -1099,21 +1316,25 @@ function App() {
     }
     const key = parseThaiDateToKey(tf.date) || todayKey();
     const entryId = currentEntryId || crypto.randomUUID();
-    // ยอดที่บันทึกเข้าสรุป: เทรด=ยอดส่วนต่าง, โอนคืน=ยอด(ติดลบเชิงความหมาย แต่เก็บเป็นบวก), รับซื้อ=finalAmount
-    const savedAmount =
-      tf.mode === "trade"
-        ? tf.tradeDiffAmount
-        : tf.mode === "refund"
-        ? tf.amount
-        : tf.mode === "consign"
-        ? fmtNum(consignTotal())
-        : fmtNum(finalAmount());
+    // ยอดที่บันทึกเข้าสรุป
+    let savedAmount;
+    if (tf.mode === "trade") {
+      if (tf.tradeDir === "noDiff") savedAmount = "0";
+      else if (tf.hasDeposit) {
+        const real = parseNum(tf.realAmount);
+        const dep = parseNum(tf.depositAmount);
+        savedAmount = tf.tradeDir === "shopPays" ? fmtNum(real - dep) : fmtNum(real + dep);
+      } else savedAmount = tf.tradeDiffAmount;
+    } else if (tf.mode === "refund") savedAmount = tf.amount;
+    else if (tf.mode === "consign") savedAmount = fmtNum(consignTotal());
+    else savedAmount = fmtNum(finalAmount());
     const entry = {
       id: entryId,
       mode: tf.mode,
       tradeDir: tf.tradeDir,
-      // นับเข้ายอดรวมเฉพาะเงินที่ร้านจ่ายออก (เทรดแบบลูกค้าจ่ายเรา = ไม่นับ)
-      countsToTotal: !(tf.mode === "trade" && tf.tradeDir === "customerPays"),
+      // นับเข้ายอดรวมเฉพาะเงินที่ร้านจ่ายออก
+      // เทรด: เราจ่ายลูกค้า=นับ, ลูกค้าจ่ายเรา/ไม่มีส่วนต่าง=ไม่นับ
+      countsToTotal: !(tf.mode === "trade" && tf.tradeDir !== "shopPays"),
       fullText: mainText(), // ข้อความเต็มตามโหมด สำหรับแสดงในสรุปยอด
       amount: savedAmount,
       isCash: tf.isCash,
@@ -1127,16 +1348,20 @@ function App() {
       giftItem: tf.giftItem,
       giftColor: tf.giftColor,
       salesName: tf.salesName,
-      products: prods.map((p) => ({
-        id: p.id,
-        name: p.name,
-        sn: p.sn,
-        snMount: p.snMount,
-        type: p.type,
-        sellMode: p.sellMode,
-        sendRepair: p.sendRepair,
-        conditionLines: buildConditionLines(p),
-      })),
+      products: (() => {
+        const labels = computeSetLabels(prods);
+        return prods.map((p) => ({
+          id: p.id,
+          name: p.name,
+          sn: p.sn,
+          snMount: p.snMount,
+          type: p.type,
+          setGroup: p.setGroup,
+          setLabel: labels[p.id] || "",
+          sendRepair: p.sendRepair,
+          conditionLines: buildConditionLines(p),
+        }));
+      })(),
     };
 
     // อัปเดต cache ในหน่วยความจำก่อน (ชัวร์ 100% ไม่พึ่ง storage) แล้วค่อย sync ลง storage
@@ -1165,6 +1390,229 @@ function App() {
     supa.upsert(entryId, key, entry).catch(() => {
       showToast("บันทึกในเครื่องแล้ว แต่ยังไม่ขึ้นฐานข้อมูลกลาง (เช็คเน็ต)");
     });
+  };
+
+  // ===== สร้าง PDF จาก HTML (รองรับภาษาไทยเต็มที่ ผ่าน html2canvas) =====
+  const renderHtmlToPdf = async (html, filename) => {
+    setPdfBusy(true);
+    try {
+      // สร้าง element ชั่วคราวนอกจอ
+      const holder = document.createElement("div");
+      holder.style.position = "fixed";
+      holder.style.left = "-9999px";
+      holder.style.top = "0";
+      holder.style.width = "794px"; // A4 ~ 96dpi
+      holder.style.background = "#FFFFFF";
+      holder.innerHTML = html;
+      document.body.appendChild(holder);
+
+      const canvas = await window.html2canvas(holder, { scale: 2, backgroundColor: "#FFFFFF" });
+      document.body.removeChild(holder);
+
+      const imgData = canvas.toDataURL("image/jpeg", 0.92);
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit: "pt", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const imgW = pageW;
+      const imgH = (canvas.height / canvas.width) * imgW;
+      let y = 0;
+      // ถ้ายาวเกิน 1 หน้า แบ่งหน้า
+      if (imgH <= pageH) {
+        pdf.addImage(imgData, "JPEG", 0, 0, imgW, imgH);
+      } else {
+        let remaining = imgH;
+        let position = 0;
+        while (remaining > 0) {
+          pdf.addImage(imgData, "JPEG", 0, position, imgW, imgH);
+          remaining -= pageH;
+          if (remaining > 0) {
+            pdf.addPage();
+            position -= pageH;
+          }
+        }
+      }
+      // สร้างไฟล์ PDF
+      const blob = pdf.output("blob");
+      const file = new File([blob], filename, { type: "application/pdf" });
+
+      // 1) Web Share API — วิธีหลัก เด้งเลือก Good Notes ได้เลย (iPad รองรับในโหมดแอป)
+      try {
+        if (navigator.share) {
+          await navigator.share({ files: [file], title: filename });
+          showToast("เลือก Good Notes เพื่อเปิดเอกสารได้เลย");
+          return;
+        }
+      } catch (shareErr) {
+        if (shareErr && shareErr.name === "AbortError") return; // ผู้ใช้กดยกเลิกเอง
+        // ถ้า share ไฟล์ไม่ได้ ค่อยลองวิธีถัดไป
+      }
+
+      // 2) เปิด PDF แบบ data URI ในแท็บใหม่
+      const dataUri = pdf.output("datauristring");
+      const win = window.open();
+      if (win) {
+        win.document.write(
+          `<html><head><title>${filename}</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>` +
+            `<body style="margin:0;padding:0;"><iframe src="${dataUri}" style="border:0;width:100vw;height:100vh;"></iframe></body></html>`
+        );
+        win.document.close();
+        showToast("เปิดเอกสารแล้ว — กดปุ่มแชร์ (📤) เลือก Good Notes");
+        return;
+      }
+
+      // 3) Fallback: ดาวน์โหลด
+      pdf.save(filename);
+      showToast("สร้าง PDF แล้ว — อยู่ในแอป ไฟล์ > ดาวน์โหลด");
+    } catch (e) {
+      showToast("สร้าง PDF ไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  // แถวสินค้าในตารางเอกสาร (รับซื้อ)
+  const docProductRows = () => {
+    const prods = tfProducts.filter((p) => p.name || p.sn);
+    const labels = computeSetLabels(prods);
+    return prods
+      .map((p, i) => {
+        const sn = p.snMount ? `${cleanSn(p.sn)} / ${cleanSn(p.snMount)}` : cleanSn(p.sn);
+        const nm = (p.name || "") + (labels[p.id] || "");
+        const price = p.price ? fmtNum(parseNum(p.price)) : "";
+        return `<tr>
+          <td style="border:1px solid #333;padding:6px 8px;text-align:center;">${i + 1}</td>
+          <td style="border:1px solid #333;padding:6px 8px;">${sn || "-"}</td>
+          <td style="border:1px solid #333;padding:6px 8px;">${nm}</td>
+          <td style="border:1px solid #333;padding:6px 8px;text-align:right;">${price}</td>
+        </tr>`;
+      })
+      .join("");
+  };
+
+  const sigBlock = () => {
+    if (tf.custSignature) {
+      return `<img src="${tf.custSignature}" style="height:70px;object-fit:contain;" />`;
+    }
+    return `<div style="height:70px;border-bottom:1px solid #999;width:220px;"></div>`;
+  };
+
+  const generateReceiptPdf = () => {
+    const totalPrice = tfProducts.reduce((s, p) => s + parseNum(p.price), 0);
+    const payMethod = tf.isCash
+      ? "เงินสด"
+      : `โอนเข้าบัญชี ${tf.account || "-"} ${tf.bank ? "(" + tf.bank + ")" : ""} ${tf.payeeName || ""}`;
+    const html = `
+      <div style="font-family:'Sarabun','Prompt',sans-serif;padding:40px;color:#111;">
+        <div style="text-align:center;margin-bottom:8px;">
+          <div style="font-size:22px;font-weight:700;">ใบเสร็จรับเงิน / RECEIPT</div>
+          <div style="font-size:13px;margin-top:4px;">บริษัท เดอะ เอ็นทีเอ็น กรุ๊ป จำกัด</div>
+          <div style="font-size:12px;color:#555;">เลขประจำตัวผู้เสียภาษี 0115568014921</div>
+        </div>
+        <div style="text-align:right;font-size:13px;margin-bottom:12px;">วันที่ ${tf.date}</div>
+        <table style="width:100%;font-size:13px;margin-bottom:10px;">
+          <tr><td style="padding:3px 0;width:110px;">ชื่อผู้ขาย :</td><td>${tf.custName || ""}</td></tr>
+          <tr><td style="padding:3px 0;">เลขบัตร ปชช :</td><td>${tf.custId || ""}</td></tr>
+          <tr><td style="padding:3px 0;vertical-align:top;">ที่อยู่ :</td><td>${(tf.custAddr || "").replace(/\n/g, "<br>")}</td></tr>
+          <tr><td style="padding:3px 0;">เบอร์โทร :</td><td>${tf.custPhone || ""}</td></tr>
+        </table>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px;">
+          <thead>
+            <tr style="background:#eeeae0;">
+              <th style="border:1px solid #333;padding:6px 8px;width:36px;">#</th>
+              <th style="border:1px solid #333;padding:6px 8px;">รหัสสินค้า (SN)</th>
+              <th style="border:1px solid #333;padding:6px 8px;">รายการ</th>
+              <th style="border:1px solid #333;padding:6px 8px;width:100px;">ราคา (บาท)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${docProductRows()}
+            <tr>
+              <td colspan="3" style="border:1px solid #333;padding:6px 8px;text-align:right;font-weight:700;">รวม</td>
+              <td style="border:1px solid #333;padding:6px 8px;text-align:right;font-weight:700;">${totalPrice ? fmtNum(totalPrice) : fmtNum(finalAmount())}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="font-size:13px;margin-bottom:24px;">การรับเงิน : ${payMethod}</div>
+        <div style="display:flex;justify-content:space-between;margin-top:40px;font-size:13px;">
+          <div style="text-align:center;">
+            ${sigBlock()}
+            <div style="border-top:1px solid #333;padding-top:4px;width:220px;">ลงชื่อผู้ขาย/ผู้รับเงิน</div>
+            <div style="margin-top:2px;">( ${tf.custName || "....................."} )</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="height:70px;"></div>
+            <div style="border-top:1px solid #333;padding-top:4px;width:220px;">ลงชื่อผู้รับซื้อ (ร้าน)</div>
+            <div style="margin-top:2px;">( ${tf.salesName || "....................."} )</div>
+          </div>
+        </div>
+      </div>`;
+    renderHtmlToPdf(html, `ใบเสร็จ_${tf.custName || tf.date}.pdf`);
+  };
+
+  const generateConsignPdf = () => {
+    const items = (tf.consignItems || []).filter((it) => it.name || it.price);
+    const rows = items
+      .map((it, i) => {
+        const price = it.price ? fmtNum(parseNum(it.price)) : "";
+        return `<tr>
+          <td style="border:1px solid #333;padding:6px 8px;text-align:center;">${i + 1}</td>
+          <td style="border:1px solid #333;padding:6px 8px;">${it.name || ""}</td>
+          <td style="border:1px solid #333;padding:6px 8px;text-align:right;">${price}</td>
+          <td style="border:1px solid #333;padding:6px 8px;text-align:center;">${consignPct(it)}%</td>
+          <td style="border:1px solid #333;padding:6px 8px;text-align:right;">${fmtNum(consignNet(it))}</td>
+        </tr>`;
+      })
+      .join("");
+    const html = `
+      <div style="font-family:'Sarabun','Prompt',sans-serif;padding:40px;color:#111;">
+        <div style="text-align:center;margin-bottom:8px;">
+          <div style="font-size:22px;font-weight:700;">ใบสัญญารับฝากขายสินค้า</div>
+          <div style="font-size:13px;margin-top:4px;">บริษัท เดอะ เอ็นทีเอ็น กรุ๊ป จำกัด</div>
+        </div>
+        <div style="text-align:right;font-size:13px;margin-bottom:12px;">วันที่ ${tf.date}</div>
+        <table style="width:100%;font-size:13px;margin-bottom:10px;">
+          <tr><td style="padding:3px 0;width:130px;">ชื่อผู้ฝากขาย :</td><td>${tf.custName || ""}</td></tr>
+          <tr><td style="padding:3px 0;">เลขบัตร ปชช :</td><td>${tf.custId || ""}</td></tr>
+          <tr><td style="padding:3px 0;vertical-align:top;">ที่อยู่ :</td><td>${(tf.custAddr || "").replace(/\n/g, "<br>")}</td></tr>
+          <tr><td style="padding:3px 0;">เบอร์โทร :</td><td>${tf.custPhone || ""}</td></tr>
+          <tr><td style="padding:3px 0;">มาจาก :</td><td>${tf.buyerSource || ""}</td></tr>
+        </table>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px;">
+          <thead>
+            <tr style="background:#eeeae0;">
+              <th style="border:1px solid #333;padding:6px 8px;width:36px;">ลำดับ</th>
+              <th style="border:1px solid #333;padding:6px 8px;">รายละเอียดสินค้า</th>
+              <th style="border:1px solid #333;padding:6px 8px;width:90px;">ราคาขาย</th>
+              <th style="border:1px solid #333;padding:6px 8px;width:70px;">ค่าฝาก</th>
+              <th style="border:1px solid #333;padding:6px 8px;width:90px;">ยอดโอนคืน</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+            <tr>
+              <td colspan="4" style="border:1px solid #333;padding:6px 8px;text-align:right;font-weight:700;">รวมโอนคืนลูกค้า</td>
+              <td style="border:1px solid #333;padding:6px 8px;text-align:right;font-weight:700;">${fmtNum(consignTotal())}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="font-size:11.5px;color:#444;margin-bottom:20px;line-height:1.6;">
+          หมายเหตุ : ร้านรับฝากขายสินค้าตามรายการข้างต้น เมื่อขายได้จะหักค่าฝากตามอัตราที่ระบุ และโอนยอดคงเหลือคืนผู้ฝากขาย
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:30px;font-size:13px;">
+          <div style="text-align:center;">
+            ${sigBlock()}
+            <div style="border-top:1px solid #333;padding-top:4px;width:220px;">ลงชื่อผู้ฝากขาย</div>
+            <div style="margin-top:2px;">( ${tf.custName || "....................."} )</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="height:70px;"></div>
+            <div style="border-top:1px solid #333;padding-top:4px;width:220px;">ลงชื่อผู้รับฝาก (ร้าน)</div>
+            <div style="margin-top:2px;">( ${tf.salesName || "....................."} )</div>
+          </div>
+        </div>
+      </div>`;
+    renderHtmlToPdf(html, `ใบฝากขาย_${tf.custName || tf.date}.pdf`);
   };
 
   const startNewEntry = () => {
@@ -1597,7 +2045,7 @@ function App() {
                 </>
               )}
 
-              {/* หักมัดจำ — โหมดรับซื้อเท่านั้น */}
+              {/* หักมัดจำ — โหมดรับซื้อ */}
               {tf.mode === "buy" && (
               <button
                 onClick={() => {
@@ -1686,7 +2134,7 @@ function App() {
                     product={p}
                     index={idx}
                     showRemove={tfProducts.length > 1}
-                    showSellMode={tfProducts.length > 1 && idx > 0}
+                    showSellMode={tfProducts.length > 1}
                     history={productHistory}
                     onChange={(np) => {
                       setTfProducts(tfProducts.map((x) => (x.id === p.id ? np : x)));
@@ -1713,14 +2161,14 @@ function App() {
                 <>
                   <div>
                     <span className="block text-xs font-medium text-[#6E675C] mb-1.5 tracking-wide">ทิศทางส่วนต่าง</span>
-                    <div className="flex gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <button
                         type="button"
                         onClick={() => {
                           setTf({ ...tf, tradeDir: "customerPays" });
                           setSavedToday(false);
                         }}
-                        className={`flex-1 rounded-lg py-2 text-[12px] font-medium border transition-colors ${
+                        className={`rounded-lg py-2 text-[12px] font-medium border transition-colors ${
                           tf.tradeDir === "customerPays"
                             ? "bg-[#B5652F] border-[#B5652F] text-[#FFFFFF]"
                             : "bg-[#F4F3EF] border-[#D4D2CB] text-[#5A544A]"
@@ -1734,7 +2182,7 @@ function App() {
                           setTf({ ...tf, tradeDir: "shopPays" });
                           setSavedToday(false);
                         }}
-                        className={`flex-1 rounded-lg py-2 text-[12px] font-medium border transition-colors ${
+                        className={`rounded-lg py-2 text-[12px] font-medium border transition-colors ${
                           tf.tradeDir === "shopPays"
                             ? "bg-[#B5652F] border-[#B5652F] text-[#FFFFFF]"
                             : "bg-[#F4F3EF] border-[#D4D2CB] text-[#5A544A]"
@@ -1742,19 +2190,41 @@ function App() {
                       >
                         เราจ่ายลูกค้า
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTf({ ...tf, tradeDir: "noDiff", tradeDiffAmount: "" });
+                          setSavedToday(false);
+                        }}
+                        className={`rounded-lg py-2 text-[12px] font-medium border transition-colors ${
+                          tf.tradeDir === "noDiff"
+                            ? "bg-[#B5652F] border-[#B5652F] text-[#FFFFFF]"
+                            : "bg-[#F4F3EF] border-[#D4D2CB] text-[#5A544A]"
+                        }`}
+                      >
+                        ไม่มีส่วนต่าง
+                      </button>
                     </div>
                   </div>
-                  <Field label={tf.tradeDir === "shopPays" ? "ยอดส่วนต่าง (เราจ่ายลูกค้า)" : "ยอดส่วนต่าง (ลูกค้าจ่ายเรา)"}>
-                    <input
-                      className={inputCls}
-                      placeholder="เช่น 23,380"
-                      value={tf.tradeDiffAmount}
-                      onChange={(e) => {
-                        setTf({ ...tf, tradeDiffAmount: e.target.value });
-                        setSavedToday(false);
-                      }}
-                    />
-                  </Field>
+                  {/* ยอดส่วนต่าง — ซ่อนถ้าไม่มีส่วนต่าง */}
+                  {tf.tradeDir !== "noDiff" && (
+                    <Field label={tf.tradeDir === "shopPays" ? "ยอดส่วนต่าง (เราจ่ายลูกค้า)" : "ยอดส่วนต่าง (ลูกค้าจ่ายเรา)"}>
+                      <input
+                        className={inputCls}
+                        placeholder="เช่น 23,380"
+                        value={tf.tradeDiffAmount}
+                        onChange={(e) => {
+                          setTf({ ...tf, tradeDiffAmount: e.target.value });
+                          setSavedToday(false);
+                        }}
+                      />
+                    </Field>
+                  )}
+                  {tf.tradeDir === "noDiff" && (
+                    <p className="text-[12px] text-[#3E7A5A] bg-[#DCEAE2] border border-[#4A8C74] rounded-lg px-3 py-2">
+                      ไม่มียอดส่วนต่าง — ยอดเทรดเท่าราคาสินค้าพอดี
+                    </p>
+                  )}
                   {/* เราจ่ายลูกค้า → ต้องมีบัญชีลูกค้า */}
                   {tf.tradeDir === "shopPays" && (
                     <>
@@ -1769,6 +2239,78 @@ function App() {
                           <input className={inputCls} value={tf.payeeName} onChange={(e) => setTf({ ...tf, payeeName: e.target.value })} />
                         </Field>
                       </div>
+                    </>
+                  )}
+
+                  {/* หักมัดจำ/ค่าอุปกรณ์ที่ขาด — ใต้ยอดส่วนต่าง (ซ่อนถ้าไม่มีส่วนต่าง) */}
+                  {tf.tradeDir !== "noDiff" && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTf({ ...tf, hasDeposit: !tf.hasDeposit });
+                          setSavedToday(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 rounded-lg bg-[#F4F3EF] border border-[#D4D2CB] px-3 py-2.5"
+                      >
+                        <span
+                          className={`flex-shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                            tf.hasDeposit ? "bg-[#B5652F] border-[#B5652F]" : "border-[#B8B5AC] bg-[#FFFFFF]"
+                          }`}
+                        >
+                          {tf.hasDeposit && <Check size={13} className="text-[#FFFFFF]" strokeWidth={3} />}
+                        </span>
+                        <span className="text-[13px] text-[#3A362F]">
+                          {tf.tradeDir === "shopPays" ? "มีหักมัดจำ (อุปกรณ์ที่ลูกค้าลืม)" : "มีค่าอุปกรณ์ที่ขาด (ลูกค้าจ่ายเพิ่ม)"}
+                        </span>
+                      </button>
+
+                      {tf.hasDeposit && (
+                        <div className="rounded-lg bg-[#FFFFFF] border border-[#D4D2CB] p-3 space-y-2.5">
+                          <div className="grid grid-cols-2 gap-3">
+                            <Field label={tf.tradeDir === "shopPays" ? "ยอดจริง (ก่อนหัก)" : "ยอดจริง (ก่อนบวก)"}>
+                              <input
+                                className={inputCls}
+                                placeholder={tf.tradeDir === "shopPays" ? "30,000" : "29,000"}
+                                value={tf.realAmount}
+                                onChange={(e) => {
+                                  setTf({ ...tf, realAmount: e.target.value });
+                                  setSavedToday(false);
+                                }}
+                              />
+                            </Field>
+                            <Field label={tf.tradeDir === "shopPays" ? "จำนวนที่หัก" : "ค่าอุปกรณ์ที่ขาด"}>
+                              <input
+                                className={inputCls}
+                                placeholder="1,000"
+                                value={tf.depositAmount}
+                                onChange={(e) => {
+                                  setTf({ ...tf, depositAmount: e.target.value });
+                                  setSavedToday(false);
+                                }}
+                              />
+                            </Field>
+                          </div>
+                          <Field label="อุปกรณ์อะไร (เช่น ที่ชาร์จ / แบต / สายคล้อง)">
+                            <input
+                              className={inputCls}
+                              placeholder="เช่น ที่ชาร์จ"
+                              value={tf.depositReason}
+                              onChange={(e) => {
+                                setTf({ ...tf, depositReason: e.target.value });
+                                setSavedToday(false);
+                              }}
+                            />
+                          </Field>
+                          {(tf.realAmount || tf.depositAmount) && (
+                            <div className="rounded-lg bg-[#F6EEE6] border border-[#E8D9C4] px-3 py-2 text-[13px] text-[#9A6432]">
+                              {tf.tradeDir === "shopPays"
+                                ? `เราจ่ายจริง : ${fmtNum(parseNum(tf.realAmount) - parseNum(tf.depositAmount))} บาท`
+                                : `ลูกค้าจ่ายจริง : ${fmtNum(parseNum(tf.realAmount) + parseNum(tf.depositAmount))} บาท`}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </>
                   )}
                 </>
@@ -1913,6 +2455,81 @@ function App() {
               </button>
             )}
 
+            {/* ===== เอกสาร: ข้อมูลลูกค้า + ลายเซ็น + สร้าง PDF (รับซื้อ/ฝากขาย) ===== */}
+            {(tf.mode === "buy" || tf.mode === "consign") && (
+              <div className="rounded-xl bg-[#FFFFFF] border border-[#D4D2CB] p-3.5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <ClipboardList size={16} className="text-[#B5652F]" />
+                  <span className="text-[13.5px] font-semibold text-[#2B2823]">เอกสาร/ใบเสร็จ (ให้ลูกค้าเซ็น)</span>
+                </div>
+                <p className="text-[11.5px] text-[#9A9388] -mt-1">
+                  กรอกข้อมูลลูกค้าจากบัตรประชาชน + ให้ลูกค้าเซ็น แล้วกดสร้าง PDF เปิดใน Good Notes ส่งพี่บัญชีได้เลย
+                </p>
+
+                <Field label="ชื่อ-นามสกุล ลูกค้า">
+                  <input
+                    className={inputCls}
+                    placeholder="เช่น นายสมชาย ใจดี"
+                    value={tf.custName}
+                    onChange={(e) => setTf({ ...tf, custName: e.target.value })}
+                  />
+                </Field>
+                <Field label="เลขบัตรประชาชน">
+                  <input
+                    className={inputCls}
+                    placeholder="เช่น 1 2345 67890 12 3"
+                    value={tf.custId}
+                    onChange={(e) => setTf({ ...tf, custId: e.target.value })}
+                  />
+                </Field>
+                <Field label="ที่อยู่">
+                  <textarea
+                    className={inputCls}
+                    rows={2}
+                    placeholder="ที่อยู่ตามบัตรประชาชน"
+                    value={tf.custAddr}
+                    onChange={(e) => setTf({ ...tf, custAddr: e.target.value })}
+                  />
+                </Field>
+                <Field label="เบอร์โทร (ถ้ามี)">
+                  <input
+                    className={inputCls}
+                    placeholder="เช่น 08x-xxx-xxxx"
+                    value={tf.custPhone}
+                    onChange={(e) => setTf({ ...tf, custPhone: e.target.value })}
+                  />
+                </Field>
+
+                <SignaturePad
+                  value={tf.custSignature}
+                  onChange={(sig) => setTf({ ...tf, custSignature: sig })}
+                />
+
+                <div className="grid grid-cols-1 gap-2 pt-1">
+                  {tf.mode === "buy" && (
+                    <button
+                      type="button"
+                      onClick={() => generateReceiptPdf()}
+                      disabled={pdfBusy}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl font-semibold py-3 text-[14px] bg-[#B5652F] text-[#FFFFFF]"
+                    >
+                      <ClipboardList size={16} /> {pdfBusy ? "กำลังสร้าง..." : "สร้างใบเสร็จรับเงิน (PDF)"}
+                    </button>
+                  )}
+                  {tf.mode === "consign" && (
+                    <button
+                      type="button"
+                      onClick={() => generateConsignPdf()}
+                      disabled={pdfBusy}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl font-semibold py-3 text-[14px] bg-[#B5652F] text-[#FFFFFF]"
+                    >
+                      <ClipboardList size={16} /> {pdfBusy ? "กำลังสร้าง..." : "สร้างเอกสารฝากขาย (PDF)"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             <ClearFormButton onClear={startNewEntry} />
           </>
         )}
@@ -2022,12 +2639,7 @@ function App() {
                     {e.products.map((p) => (
                       <div key={p.id} className="text-[#5A544A] mt-0.5">
                         {p.name} {p.sn && `· SN ${cleanSn(p.sn)}`}
-                        {p.sellMode && (
-                          <span className="text-[#B5652F]">
-                            {" "}
-                            · {p.sellMode === "separate" ? "แยกขาย" : "ขายคู่"}
-                          </span>
-                        )}
+                        {p.setLabel && <span className="text-[#B5652F]"> {p.setLabel}</span>}
                         {p.sendRepair && <span className="text-[#C0483B]"> · ส่งซ่อม</span>}
                       </div>
                     ))}
