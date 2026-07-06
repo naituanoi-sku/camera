@@ -464,7 +464,9 @@ const emptyTf = () => ({
   // ที่อยู่
   custPhone: "",
   // เบอร์โทร
-  custSignature: "" // ลายเซ็นลูกค้า (dataURL รูปภาพ)
+  custSignature: "",
+  // ลายเซ็นลูกค้า (dataURL รูปภาพ)
+  custIdCardImg: "" // รูปบัตรประชาชน (dataURL) แปะในเอกสาร
 });
 function emptyConsignItem() {
   return {
@@ -1326,8 +1328,6 @@ function App() {
   const [purchasesByDate, setPurchasesByDate] = useState({});
   const [syncing, setSyncing] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
-  const [scanning, setScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
   const idCardInputRef = useRef(null);
   const loadFromLocal = useCallback(() => {
     try {
@@ -1894,116 +1894,20 @@ function App() {
     return `<div style="height:70px;border-bottom:1px solid #999;width:220px;"></div>`;
   };
 
-  // ===== สแกนบัตรประชาชน (OCR) — โหลด Tesseract เฉพาะตอนกดสแกน =====
-  const loadTesseract = () => new Promise((resolve, reject) => {
-    if (window.Tesseract) return resolve(window.Tesseract);
-    const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
-    s.onload = () => resolve(window.Tesseract);
-    s.onerror = () => reject(new Error("โหลดตัวสแกนไม่สำเร็จ"));
-    document.head.appendChild(s);
-  });
-  const parseIdCard = text => {
-    const result = {
-      id: "",
-      name: "",
-      addr: ""
-    };
-    const raw = text || "";
-    const lines = raw.split("\n").map(l => l.trim()).filter(l => l.length > 0);
-
-    // 1) เลขบัตร 13 หลัก — หากลุ่มตัวเลข (มีเว้นวรรค/ขีดได้) รวมกันได้ 13 หลัก
-    const digitGroups = raw.match(/[\d\s-]{13,25}/g) || [];
-    for (const g of digitGroups) {
-      const digits = g.replace(/\D/g, "");
-      if (digits.length === 13) {
-        result.id = digits.replace(/(\d)(\d{4})(\d{5})(\d{2})(\d{1})/, "$1 $2 $3 $4 $5");
-        break;
-      }
-    }
-
-    // 2) ชื่อ-นามสกุล — หาบรรทัดที่มีคำนำหน้า หรืออยู่หลังคำว่า ชื่อ/นาม
-    for (const l of lines) {
-      // ตัดคำภาษาอังกฤษ/Name ออก เอาเฉพาะไทย
-      if (/(?:น\.?ส\.?|นาย|นาง|นางสาว|เด็กชาย|เด็กหญิง)/.test(l) && /[ก-๙]/.test(l)) {
-        let nm = l.replace(/.*?(?=(?:น\.?ส\.?|นาย|นาง|นางสาว|เด็กชาย|เด็กหญิง))/, "").replace(/(ชื่อตัวและชื่อสกุล|ชื่อตัว|ชื่อสกุล|Name|Last name)/gi, "").trim();
-        if (nm.length > 3) {
-          result.name = nm;
-          break;
-        }
-      }
-    }
-
-    // 3) ที่อยู่ — หาบรรทัดที่ขึ้นต้นด้วยที่อยู่ หรือมีคำบ่งชี้ (ที่อยู่/หมู่/ต./อ./จ./แขวง/เขต)
-    const addrParts = [];
-    let capture = false;
-    for (const l of lines) {
-      if (/ที่อยู่/.test(l)) {
-        capture = true;
-        const after = l.replace(/.*ที่อยู่\s*/, "").trim();
-        if (after) addrParts.push(after);
-        continue;
-      }
-      if (capture) {
-        if (/[ก-๙]/.test(l) && !/(?:วันเกิด|Date|Birth|ศาสนา|เลขประจำ)/i.test(l)) {
-          addrParts.push(l);
-        }
-        if (addrParts.length >= 3) break;
-      }
-      // สำรอง: บรรทัดที่มีคำบ่งชี้ที่อยู่
-      if (!capture && /(แขวง|เขต|ตำบล|อำเภอ|จังหวัด|ต\.|อ\.|จ\.|หมู่|ถนน|ซอย)/.test(l)) {
-        addrParts.push(l);
-      }
-    }
-    if (addrParts.length) result.addr = addrParts.join(" ").replace(/\s+/g, " ").trim();
-    return result;
-  };
-  const handleScanIdCard = async file => {
+  // ===== ถ่ายรูปบัตรประชาชน → แปะในเอกสาร (ช่อง "บัตรประชาชน") =====
+  const handleIdCardPhoto = file => {
     if (!file) return;
-    setScanning(true);
-    setScanProgress(0);
-    try {
-      const Tesseract = await loadTesseract();
-      const {
-        data
-      } = await Tesseract.recognize(file, "tha+eng", {
-        logger: m => {
-          if (m.status === "recognizing text" && typeof m.progress === "number") {
-            setScanProgress(Math.round(m.progress * 100));
-          }
-        }
-      });
-      const parsed = parseIdCard(data.text);
-      const found = [];
-      const patch = {};
-      if (parsed.id) {
-        patch.custId = parsed.id;
-        found.push("เลขบัตร");
-      }
-      if (parsed.name) {
-        patch.custName = parsed.name;
-        found.push("ชื่อ");
-      }
-      if (parsed.addr) {
-        patch.custAddr = parsed.addr;
-        found.push("ที่อยู่");
-      }
-      if (found.length) {
-        setTf(prev => ({
-          ...prev,
-          ...patch
-        }));
-        showToast(`สแกนเสร็จ! อ่านได้: ${found.join(", ")} — ตรวจ/แก้ได้เลยนะคะ`);
-      } else {
-        showToast("อ่านบัตรไม่ชัด ลองถ่ายใหม่ให้ตรง+แสงดี หรือกรอกมือได้เลยค่ะ");
-      }
-    } catch (e) {
-      showToast("สแกนไม่สำเร็จ (โหลดตัวสแกนไม่ได้/เน็ตช้า) ลองใหม่ หรือกรอกมือได้เลยค่ะ");
-    } finally {
-      setScanning(false);
-      setScanProgress(0);
-      if (idCardInputRef.current) idCardInputRef.current.value = "";
-    }
+    const reader = new FileReader();
+    reader.onload = e => {
+      setTf(prev => ({
+        ...prev,
+        custIdCardImg: e.target.result
+      }));
+      showToast("เพิ่มรูปบัตรแล้ว จะไปอยู่ในช่องบัตรประชาชนของเอกสาร");
+    };
+    reader.onerror = () => showToast("อ่านรูปไม่สำเร็จ ลองใหม่นะคะ");
+    reader.readAsDataURL(file);
+    if (idCardInputRef.current) idCardInputRef.current.value = "";
   };
   const generateReceiptPdf = () => {
     const totalPrice = tfProducts.reduce((s, p) => s + parseNum(p.price), 0);
@@ -2022,7 +1926,8 @@ function App() {
     });
     const totalHtml = totalPrice ? '<div style="position:absolute;top:75.8%;left:80.5%;width:15%;font-size:10.5px;text-align:right;font-weight:700;">' + fmtNum(totalPrice) + '</div>' : "";
     const sigHtml = tf.custSignature ? '<img src="' + tf.custSignature + '" style="position:absolute;top:85.5%;left:68%;height:34px;object-fit:contain;" />' : "";
-    const html = '<div style="position:relative;width:794px;">' + '<img src="' + RECEIPT_BG + '" style="width:794px;display:block;" />' + '<div style="position:absolute;top:16.8%;left:79%;font-size:12px;">' + (tf.date || "") + '</div>' + '<div style="position:absolute;top:23.6%;left:8%;font-size:12px;">' + (tf.custName || "") + '</div>' + '<div style="position:absolute;top:26.5%;left:9%;width:52%;font-size:11px;">' + (tf.custAddr ? tf.custAddr.replace(/\n/g, " ") : "") + '</div>' + '<div style="position:absolute;top:31.2%;left:17%;font-size:12px;">' + (tf.custId || "") + '</div>' + rowsHtml + totalHtml + '<div style="position:absolute;top:83.5%;left:22%;font-size:12px;">' + (tf.bank || "") + '</div>' + '<div style="position:absolute;top:85.8%;left:23%;font-size:12px;">' + (tf.account || "") + '</div>' + '<div style="position:absolute;top:88%;left:22%;font-size:12px;">' + (tf.payeeName || "") + '</div>' + sigHtml + '</div>';
+    const idImgHtml = tf.custIdCardImg ? '<img src="' + tf.custIdCardImg + '" style="position:absolute;top:21.4%;left:58.5%;width:37%;height:14.6%;object-fit:contain;" />' : "";
+    const html = '<div style="position:relative;width:794px;">' + '<img src="' + RECEIPT_BG + '" style="width:794px;display:block;" />' + idImgHtml + '<div style="position:absolute;top:16.8%;left:79%;font-size:12px;">' + (tf.date || "") + '</div>' + '<div style="position:absolute;top:23.6%;left:8%;font-size:12px;">' + (tf.custName || "") + '</div>' + '<div style="position:absolute;top:26.5%;left:9%;width:52%;font-size:11px;">' + (tf.custAddr ? tf.custAddr.replace(/\n/g, " ") : "") + '</div>' + '<div style="position:absolute;top:31.2%;left:17%;font-size:12px;">' + (tf.custId || "") + '</div>' + rowsHtml + totalHtml + '<div style="position:absolute;top:83.5%;left:22%;font-size:12px;">' + (tf.bank || "") + '</div>' + '<div style="position:absolute;top:85.8%;left:23%;font-size:12px;">' + (tf.account || "") + '</div>' + '<div style="position:absolute;top:88%;left:22%;font-size:12px;">' + (tf.payeeName || "") + '</div>' + sigHtml + '</div>';
     renderHtmlToPdf(html, `ใบเสร็จ_${tf.custName || tf.date}.pdf`);
   };
   const generateConsignPdf = () => {
@@ -2042,7 +1947,8 @@ function App() {
       rowsHtml += '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:1.9%;width:7.7%;font-size:9.5px;text-align:center;">' + (i + 1) + '</div>' + '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:26%;width:36%;font-size:9.5px;">' + name + '</div>' + '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:62.5%;width:17%;font-size:9.5px;">' + sn + '</div>' + '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:80.5%;width:16%;font-size:9.5px;text-align:right;">' + price + '</div>';
     });
     const sigHtml = tf.custSignature ? '<img src="' + tf.custSignature + '" style="position:absolute;top:91.5%;left:8%;height:30px;object-fit:contain;" />' : "";
-    const html = '<div style="position:relative;width:794px;">' + '<img src="' + CONSIGN_BG + '" style="width:794px;display:block;" />' + '<div style="position:absolute;top:16.4%;left:11%;font-size:11px;">' + (tf.date || "") + '</div>' + '<div style="position:absolute;top:19.4%;left:22%;width:36%;font-size:11px;">' + (tf.custName || "") + '</div>' + '<div style="position:absolute;top:22.4%;left:25%;font-size:11px;">' + (tf.custId || "") + '</div>' + '<div style="position:absolute;top:25.4%;left:13%;width:45%;font-size:10px;">' + (tf.custAddr ? tf.custAddr.replace(/\n/g, " ") : "") + '</div>' + '<div style="position:absolute;top:28.5%;left:16%;font-size:11px;">' + (tf.custPhone || "") + '</div>' + rowsHtml + sigHtml + '</div>';
+    const idImgHtml = tf.custIdCardImg ? '<img src="' + tf.custIdCardImg + '" style="position:absolute;top:12.5%;left:54.5%;width:42%;height:16.5%;object-fit:contain;" />' : "";
+    const html = '<div style="position:relative;width:794px;">' + '<img src="' + CONSIGN_BG + '" style="width:794px;display:block;" />' + idImgHtml + '<div style="position:absolute;top:16.4%;left:11%;font-size:11px;">' + (tf.date || "") + '</div>' + '<div style="position:absolute;top:19.4%;left:22%;width:36%;font-size:11px;">' + (tf.custName || "") + '</div>' + '<div style="position:absolute;top:22.4%;left:25%;font-size:11px;">' + (tf.custId || "") + '</div>' + '<div style="position:absolute;top:25.4%;left:13%;width:45%;font-size:10px;">' + (tf.custAddr ? tf.custAddr.replace(/\n/g, " ") : "") + '</div>' + '<div style="position:absolute;top:28.5%;left:16%;font-size:11px;">' + (tf.custPhone || "") + '</div>' + rowsHtml + sigHtml + '</div>';
     renderHtmlToPdf(html, `ใบฝากขาย_${tf.custName || tf.date}.pdf`);
   };
   const startNewEntry = () => {
@@ -2873,17 +2779,33 @@ function App() {
     type: "file",
     accept: "image/*",
     className: "hidden",
-    onChange: e => handleScanIdCard(e.target.files && e.target.files[0])
-  }), /*#__PURE__*/React.createElement("button", {
+    onChange: e => handleIdCardPhoto(e.target.files && e.target.files[0])
+  }), tf.custIdCardImg ? /*#__PURE__*/React.createElement("div", {
+    className: "rounded-xl bg-[#F4F3EF] border border-[#D4D2CB] p-2.5 flex items-center gap-3"
+  }, /*#__PURE__*/React.createElement("img", {
+    src: tf.custIdCardImg,
+    alt: "บัตรประชาชน",
+    className: "h-14 w-auto rounded-md object-cover"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 text-[12px] text-[#3E7A5A]"
+  }, "✓ มีรูปบัตรแล้ว", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("span", {
+    className: "text-[10.5px] text-[#9A9388]"
+  }, "จะแปะในช่องบัตรของเอกสาร")), /*#__PURE__*/React.createElement("button", {
     type: "button",
-    disabled: scanning,
+    onClick: () => setTf({
+      ...tf,
+      custIdCardImg: ""
+    }),
+    className: "text-[11px] text-[#C0483B] px-2 py-1 rounded-md border border-[#C0483B]/30"
+  }, "ลบรูป")) : /*#__PURE__*/React.createElement("button", {
+    type: "button",
     onClick: () => idCardInputRef.current && idCardInputRef.current.click(),
-    className: "w-full flex items-center justify-center gap-2 rounded-xl font-semibold py-2.5 text-[13px] bg-[#7C5CD6] hover:bg-[#6A4CC0] text-white active:scale-[0.98] disabled:opacity-60"
+    className: "w-full flex items-center justify-center gap-2 rounded-xl font-semibold py-2.5 text-[13px] bg-[#7C5CD6] hover:bg-[#6A4CC0] text-white active:scale-[0.98]"
   }, /*#__PURE__*/React.createElement(Camera, {
     size: 16
-  }), scanning ? "กำลังสแกนบัตร..." : "📷 สแกนบัตรประชาชน (ช่วยกรอกให้)"), /*#__PURE__*/React.createElement("p", {
+  }), "📷 ถ่ายรูปบัตรประชาชน (แปะในเอกสาร)"), /*#__PURE__*/React.createElement("p", {
     className: "text-[10.5px] text-[#9A9388] -mt-1.5 text-center"
-  }, "ถ่ายบัตรให้ตรง แสงชัด — อ่านแล้วตรวจ/แก้ได้ทุกช่อง ถ้าอ่านผิดพิมพ์ทับได้เลย"), /*#__PURE__*/React.createElement(Field, {
+  }, "รูปบัตรจะไปอยู่ในช่อง \"บัตรประชาชน\" ของเอกสาร PDF ให้อัตโนมัติ"), /*#__PURE__*/React.createElement(Field, {
     label: "ชื่อ-นามสกุล ลูกค้า"
   }, /*#__PURE__*/React.createElement("input", {
     className: inputCls,
@@ -3062,26 +2984,7 @@ function App() {
     className: "text-[13px] text-[#9A9388]"
   }, "ยังไม่มีรายการของวันนี้ — ไปกรอกที่แท็บ \"รับซื้อ + แจ้งโอนเงิน\" แล้วกดบันทึกเข้าสรุปยอดก่อนนะคะ") : /*#__PURE__*/React.createElement("pre", {
     className: "whitespace-pre-wrap text-[13.5px] leading-relaxed text-[#3A362F] font-sans"
-  }, summaryText())))), scanning && /*#__PURE__*/React.createElement("div", {
-    className: "fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-8"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "bg-[#FFFFFF] border border-[#D4D2CB] rounded-2xl p-6 max-w-xs w-full text-center"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "text-[36px] mb-2"
-  }, "📷"), /*#__PURE__*/React.createElement("div", {
-    className: "text-[15px] font-semibold text-[#2B2823] mb-1"
-  }, "กำลังสแกนบัตร..."), /*#__PURE__*/React.createElement("div", {
-    className: "text-[12px] text-[#6E675C] mb-3"
-  }, scanProgress > 0 ? `อ่านข้อความ ${scanProgress}%` : "กำลังโหลดตัวสแกน... (ครั้งแรกอาจนานหน่อย)"), /*#__PURE__*/React.createElement("div", {
-    className: "w-full h-2 bg-[#F4F3EF] rounded-full overflow-hidden"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "h-full bg-[#7C5CD6] transition-all duration-300",
-    style: {
-      width: `${scanProgress > 0 ? scanProgress : 10}%`
-    }
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "text-[10.5px] text-[#9A9388] mt-3"
-  }, "รอสักครู่นะคะ อย่าเพิ่งปิดหน้านี้"))), toast && /*#__PURE__*/React.createElement("div", {
+  }, summaryText())))), toast && /*#__PURE__*/React.createElement("div", {
     className: "fixed bottom-5 left-1/2 -translate-x-1/2 bg-[#2B2823] border border-[#2B2823] text-white text-[13px] px-4 py-2 rounded-full shadow-lg z-20"
   }, toast));
 }
