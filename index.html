@@ -1797,9 +1797,30 @@ function App() {
       holder.style.background = "#FFFFFF";
       holder.innerHTML = html;
       document.body.appendChild(holder);
+
+      // *** สำคัญ: รอให้รูปทุกใบ (ฟอร์มพื้นหลัง + บัตร + ลายเซ็น) โหลดเสร็จก่อน ***
+      // ไม่งั้น iPad จะเรนเดอร์ตอนความสูงยังเป็น 0 → ข้อความหลุดกรอบหมด
+      const imgs = Array.from(holder.querySelectorAll("img"));
+      await Promise.all(imgs.map(img => new Promise(resolve => {
+        if (img.complete && img.naturalHeight !== 0) return resolve();
+        img.onload = () => resolve();
+        img.onerror = () => resolve();
+        // กันค้าง: timeout 8 วิ
+        setTimeout(resolve, 8000);
+      })));
+      // เผื่อ decode ภาพเสร็จจริง + layout นิ่ง
+      if (holder.querySelector("img") && holder.querySelector("img").decode) {
+        try {
+          await Promise.all(imgs.map(img => img.decode ? img.decode().catch(() => {}) : Promise.resolve()));
+        } catch (e) {}
+      }
+      await new Promise(r => setTimeout(r, 150));
       const canvas = await window.html2canvas(holder, {
         scale: 2,
-        backgroundColor: "#FFFFFF"
+        backgroundColor: "#FFFFFF",
+        useCORS: true,
+        allowTaint: true,
+        windowWidth: 794
       });
       document.body.removeChild(holder);
       const imgData = canvas.toDataURL("image/jpeg", 0.92);
@@ -1927,7 +1948,7 @@ function App() {
     const totalHtml = totalPrice ? '<div style="position:absolute;top:75.8%;left:80.5%;width:15%;font-size:10.5px;text-align:right;font-weight:700;">' + fmtNum(totalPrice) + '</div>' : "";
     const sigHtml = tf.custSignature ? '<img src="' + tf.custSignature + '" style="position:absolute;top:83.5%;left:66%;height:60px;object-fit:contain;" />' : "";
     const idImgHtml = tf.custIdCardImg ? '<img src="' + tf.custIdCardImg + '" style="position:absolute;top:20.7%;left:57.5%;width:38.7%;height:16%;object-fit:cover;" />' : "";
-    const html = '<div style="position:relative;width:794px;">' + '<img src="' + RECEIPT_BG + '" style="width:794px;display:block;" />' + idImgHtml + '<div style="position:absolute;top:16.8%;left:79%;font-size:12px;">' + (tf.date || "") + '</div>' + '<div style="position:absolute;top:24.5%;left:8%;font-size:12px;">' + (tf.custName || "") + '</div>' + '<div style="position:absolute;top:26.7%;left:9%;width:52%;font-size:11px;">' + (tf.custAddr ? tf.custAddr.replace(/\n/g, " ") : "") + '</div>' + '<div style="position:absolute;top:28.8%;left:17%;font-size:12px;">' + (tf.custId || "") + '</div>' + rowsHtml + totalHtml + '<div style="position:absolute;top:83.5%;left:22%;font-size:12px;">' + (tf.bank || "") + '</div>' + '<div style="position:absolute;top:85.8%;left:23%;font-size:12px;">' + (tf.account || "") + '</div>' + '<div style="position:absolute;top:88%;left:22%;font-size:12px;">' + (tf.payeeName || "") + '</div>' + sigHtml + '</div>';
+    const html = '<div style="position:relative;width:794px;height:1123px;">' + '<img src="' + RECEIPT_BG + '" style="width:794px;height:1123px;display:block;" />' + idImgHtml + '<div style="position:absolute;top:16.8%;left:79%;font-size:12px;">' + (tf.date || "") + '</div>' + '<div style="position:absolute;top:24.5%;left:8%;font-size:12px;">' + (tf.custName || "") + '</div>' + '<div style="position:absolute;top:26.7%;left:9%;width:52%;font-size:11px;">' + (tf.custAddr ? tf.custAddr.replace(/\n/g, " ") : "") + '</div>' + '<div style="position:absolute;top:28.8%;left:17%;font-size:12px;">' + (tf.custId || "") + '</div>' + rowsHtml + totalHtml + '<div style="position:absolute;top:83.5%;left:22%;font-size:12px;">' + (tf.bank || "") + '</div>' + '<div style="position:absolute;top:85.8%;left:23%;font-size:12px;">' + (tf.account || "") + '</div>' + '<div style="position:absolute;top:88%;left:22%;font-size:12px;">' + (tf.payeeName || "") + '</div>' + sigHtml + '</div>';
     renderHtmlToPdf(html, `ใบเสร็จ_${tf.custName || tf.date}.pdf`);
   };
   const generateConsignPdf = () => {
@@ -1948,7 +1969,7 @@ function App() {
     });
     const sigHtml = tf.custSignature ? '<img src="' + tf.custSignature + '" style="position:absolute;top:89%;left:6%;height:52px;object-fit:contain;" />' : "";
     const idImgHtml = tf.custIdCardImg ? '<img src="' + tf.custIdCardImg + '" style="position:absolute;top:11.8%;left:53.5%;width:44.3%;height:18.6%;object-fit:cover;" />' : "";
-    const html = '<div style="position:relative;width:794px;">' + '<img src="' + CONSIGN_BG + '" style="width:794px;display:block;" />' + idImgHtml + '<div style="position:absolute;top:16.4%;left:11%;font-size:11px;">' + (tf.date || "") + '</div>' + '<div style="position:absolute;top:19.4%;left:22%;width:36%;font-size:11px;">' + (tf.custName || "") + '</div>' + '<div style="position:absolute;top:22.4%;left:25%;font-size:11px;">' + (tf.custId || "") + '</div>' + '<div style="position:absolute;top:25.4%;left:13%;width:45%;font-size:10px;">' + (tf.custAddr ? tf.custAddr.replace(/\n/g, " ") : "") + '</div>' + '<div style="position:absolute;top:28.5%;left:16%;font-size:11px;">' + (tf.custPhone || "") + '</div>' + rowsHtml + sigHtml + '</div>';
+    const html = '<div style="position:relative;width:794px;height:1123px;">' + '<img src="' + CONSIGN_BG + '" style="width:794px;height:1123px;display:block;" />' + idImgHtml + '<div style="position:absolute;top:16.4%;left:11%;font-size:11px;">' + (tf.date || "") + '</div>' + '<div style="position:absolute;top:19.4%;left:22%;width:36%;font-size:11px;">' + (tf.custName || "") + '</div>' + '<div style="position:absolute;top:22.4%;left:25%;font-size:11px;">' + (tf.custId || "") + '</div>' + '<div style="position:absolute;top:25.4%;left:13%;width:45%;font-size:10px;">' + (tf.custAddr ? tf.custAddr.replace(/\n/g, " ") : "") + '</div>' + '<div style="position:absolute;top:28.5%;left:16%;font-size:11px;">' + (tf.custPhone || "") + '</div>' + rowsHtml + sigHtml + '</div>';
     renderHtmlToPdf(html, `ใบฝากขาย_${tf.custName || tf.date}.pdf`);
   };
   const startNewEntry = () => {
