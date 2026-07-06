@@ -1186,9 +1186,10 @@ function SignatureModal({
     e.preventDefault();
     const ctx = canvasRef.current.getContext("2d");
     const p = pos(e);
-    ctx.strokeStyle = "#1A1A1A";
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 3.5;
     ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     ctx.beginPath();
     ctx.moveTo(last.current.x, last.current.y);
     ctx.lineTo(p.x, p.y);
@@ -1306,6 +1307,332 @@ function SignatureModal({
   }, "เสร็จแล้ว ✓")));
 }
 
+// ---------- หน้าครอปรูปบัตรประชาชน ----------
+function ImageCropModal({
+  src,
+  onDone,
+  onCancel
+}) {
+  const imgRef = useRef(null);
+  const wrapRef = useRef(null);
+  const [imgBox, setImgBox] = useState({
+    w: 0,
+    h: 0
+  }); // ขนาดรูปที่แสดงจริง
+  // กรอบครอป (พิกัดเป็น px เทียบกับรูปที่แสดง)
+  const [crop, setCrop] = useState({
+    x: 0,
+    y: 0,
+    w: 0,
+    h: 0
+  });
+  const drag = useRef(null);
+  const onImgLoad = () => {
+    const img = imgRef.current;
+    if (!img) return;
+    const w = img.clientWidth;
+    const h = img.clientHeight;
+    setImgBox({
+      w,
+      h
+    });
+    // กรอบเริ่มต้น = สัดส่วนบัตร (ประมาณ 1.586:1) กลางรูป
+    const ratio = 1.586;
+    let cw = w * 0.86;
+    let ch = cw / ratio;
+    if (ch > h * 0.86) {
+      ch = h * 0.86;
+      cw = ch * ratio;
+    }
+    setCrop({
+      x: (w - cw) / 2,
+      y: (h - ch) / 2,
+      w: cw,
+      h: ch
+    });
+  };
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+  const startDrag = (mode, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const t = e.touches ? e.touches[0] : e;
+    drag.current = {
+      mode,
+      sx: t.clientX,
+      sy: t.clientY,
+      crop: {
+        ...crop
+      }
+    };
+  };
+  const onMove = e => {
+    if (!drag.current) return;
+    e.preventDefault();
+    const t = e.touches ? e.touches[0] : e;
+    const dx = t.clientX - drag.current.sx;
+    const dy = t.clientY - drag.current.sy;
+    const c0 = drag.current.crop;
+    let {
+      x,
+      y,
+      w,
+      h
+    } = c0;
+    const minSize = 40;
+    const m = drag.current.mode;
+    if (m === "move") {
+      x = clamp(c0.x + dx, 0, imgBox.w - c0.w);
+      y = clamp(c0.y + dy, 0, imgBox.h - c0.h);
+      setCrop({
+        x,
+        y,
+        w,
+        h
+      });
+      return;
+    }
+    // ปรับขอบซ้าย (l), ขวา (r), บน (t), ล่าง (b) — รวมมุมได้จากตัวอักษรหลายตัว
+    const right = c0.x + c0.w;
+    const bottom = c0.y + c0.h;
+    if (m.includes("l")) {
+      x = clamp(c0.x + dx, 0, right - minSize);
+      w = right - x;
+    }
+    if (m.includes("r")) {
+      w = clamp(c0.w + dx, minSize, imgBox.w - c0.x);
+    }
+    if (m.includes("t")) {
+      y = clamp(c0.y + dy, 0, bottom - minSize);
+      h = bottom - y;
+    }
+    if (m.includes("b")) {
+      h = clamp(c0.h + dy, minSize, imgBox.h - c0.y);
+    }
+    setCrop({
+      x,
+      y,
+      w,
+      h
+    });
+  };
+  const endDrag = () => {
+    drag.current = null;
+  };
+  const doCrop = () => {
+    const img = imgRef.current;
+    if (!img) return;
+    const scaleX = img.naturalWidth / imgBox.w;
+    const scaleY = img.naturalHeight / imgBox.h;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(crop.w * scaleX);
+    canvas.height = Math.round(crop.h * scaleY);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, crop.x * scaleX, crop.y * scaleY, crop.w * scaleX, crop.h * scaleY, 0, 0, canvas.width, canvas.height);
+    onDone(canvas.toDataURL("image/jpeg", 0.9));
+  };
+  const handleSize = 30;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
+      inset: 0,
+      zIndex: 9999,
+      background: "#EDEDE9",
+      display: "flex",
+      flexDirection: "column"
+    },
+    onMouseMove: onMove,
+    onMouseUp: endDrag,
+    onTouchMove: onMove,
+    onTouchEnd: endDrag
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "14px 20px",
+      textAlign: "center",
+      color: "#2B2823"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "16px",
+      fontWeight: 700
+    }
+  }, "ครอปรูปบัตรประชาชน"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "12px",
+      color: "#6E675C",
+      marginTop: "2px"
+    }
+  }, "ลากกรอบให้เหลือเฉพาะบัตร แล้วกดเสร็จ")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "0 16px",
+      overflow: "hidden"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    ref: wrapRef,
+    style: {
+      position: "relative",
+      display: "inline-block",
+      maxWidth: "100%",
+      maxHeight: "100%"
+    }
+  }, /*#__PURE__*/React.createElement("img", {
+    ref: imgRef,
+    src: src,
+    onLoad: onImgLoad,
+    alt: "crop",
+    style: {
+      maxWidth: "100%",
+      maxHeight: "62vh",
+      display: "block",
+      userSelect: "none"
+    },
+    draggable: false
+  }), crop.w > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "absolute",
+      left: crop.x + "px",
+      top: crop.y + "px",
+      width: crop.w + "px",
+      height: crop.h + "px",
+      border: "2px solid #B5652F",
+      boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)",
+      cursor: "move",
+      touchAction: "none"
+    },
+    onMouseDown: e => startDrag("move", e),
+    onTouchStart: e => startDrag("move", e)
+  }, [{
+    m: "tl",
+    style: {
+      left: -handleSize / 2,
+      top: -handleSize / 2
+    }
+  }, {
+    m: "tr",
+    style: {
+      right: -handleSize / 2,
+      top: -handleSize / 2
+    }
+  }, {
+    m: "bl",
+    style: {
+      left: -handleSize / 2,
+      bottom: -handleSize / 2
+    }
+  }, {
+    m: "br",
+    style: {
+      right: -handleSize / 2,
+      bottom: -handleSize / 2
+    }
+  }].map(hd => /*#__PURE__*/React.createElement("div", {
+    key: hd.m,
+    onMouseDown: e => startDrag(hd.m, e),
+    onTouchStart: e => startDrag(hd.m, e),
+    style: {
+      position: "absolute",
+      width: handleSize,
+      height: handleSize,
+      background: "#B5652F",
+      border: "2px solid #fff",
+      borderRadius: "50%",
+      touchAction: "none",
+      ...hd.style
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    onMouseDown: e => startDrag("t", e),
+    onTouchStart: e => startDrag("t", e),
+    style: {
+      position: "absolute",
+      left: "25%",
+      right: "25%",
+      top: -handleSize / 2,
+      height: handleSize,
+      background: "#B5652F",
+      borderRadius: handleSize / 2,
+      opacity: 0.9,
+      touchAction: "none"
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    onMouseDown: e => startDrag("b", e),
+    onTouchStart: e => startDrag("b", e),
+    style: {
+      position: "absolute",
+      left: "25%",
+      right: "25%",
+      bottom: -handleSize / 2,
+      height: handleSize,
+      background: "#B5652F",
+      borderRadius: handleSize / 2,
+      opacity: 0.9,
+      touchAction: "none"
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    onMouseDown: e => startDrag("l", e),
+    onTouchStart: e => startDrag("l", e),
+    style: {
+      position: "absolute",
+      top: "25%",
+      bottom: "25%",
+      left: -handleSize / 2,
+      width: handleSize,
+      background: "#B5652F",
+      borderRadius: handleSize / 2,
+      opacity: 0.9,
+      touchAction: "none"
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    onMouseDown: e => startDrag("r", e),
+    onTouchStart: e => startDrag("r", e),
+    style: {
+      position: "absolute",
+      top: "25%",
+      bottom: "25%",
+      right: -handleSize / 2,
+      width: handleSize,
+      background: "#B5652F",
+      borderRadius: handleSize / 2,
+      opacity: 0.9,
+      touchAction: "none"
+    }
+  })))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "10px",
+      padding: "16px 20px"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: onCancel,
+    style: {
+      flex: 1,
+      padding: "14px",
+      borderRadius: "14px",
+      background: "#F4F3EF",
+      color: "#2B2823",
+      fontWeight: 600,
+      fontSize: "15px",
+      border: "1px solid #D4D2CB"
+    }
+  }, "ยกเลิก"), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: doCrop,
+    style: {
+      flex: 2,
+      padding: "14px",
+      borderRadius: "14px",
+      background: "#4A8C74",
+      color: "#FFFFFF",
+      fontWeight: 700,
+      fontSize: "15px",
+      border: "none"
+    }
+  }, "เสร็จแล้ว ✓")));
+}
+
 // ---------- main ----------
 function App() {
   const [tab, setTab] = useState("purchase");
@@ -1328,6 +1655,7 @@ function App() {
   const [purchasesByDate, setPurchasesByDate] = useState({});
   const [syncing, setSyncing] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [cropSrc, setCropSrc] = useState(""); // รูปดิบรอครอป
   const idCardInputRef = useRef(null);
   const loadFromLocal = useCallback(() => {
     try {
@@ -1920,11 +2248,7 @@ function App() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = e => {
-      setTf(prev => ({
-        ...prev,
-        custIdCardImg: e.target.result
-      }));
-      showToast("เพิ่มรูปบัตรแล้ว จะไปอยู่ในช่องบัตรประชาชนของเอกสาร");
+      setCropSrc(e.target.result); // เปิดหน้าครอปก่อน
     };
     reader.onerror = () => showToast("อ่านรูปไม่สำเร็จ ลองใหม่นะคะ");
     reader.readAsDataURL(file);
@@ -1936,19 +2260,19 @@ function App() {
     const labels = computeSetLabels(prods);
     // แถวสินค้าวางทับตารางฟอร์มจริง (เส้นแถวห่างกัน 1.77%, แถวแรกเริ่ม 45.07%)
     let rowsHtml = "";
-    const ROW_TOP = 45.4,
+    const ROW_TOP = 45.3,
       ROW_H = 1.77;
     prods.forEach((p, i) => {
       const y = ROW_TOP + i * ROW_H;
       const sn = p.snMount ? cleanSn(p.sn) + " / " + cleanSn(p.snMount) : cleanSn(p.sn);
       const nm = (p.name || "") + (labels[p.id] || "");
       const price = p.price ? fmtNum(parseNum(p.price)) : "";
-      rowsHtml += '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:1%;width:13.5%;font-size:10px;text-align:center;">' + (sn || "") + '</div>' + '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:16%;width:47%;font-size:10px;">' + nm + '</div>' + '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:64%;width:15%;font-size:10px;text-align:center;">' + (p.name ? "1" : "") + '</div>' + '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:80.5%;width:15%;font-size:10px;text-align:right;">' + price + '</div>';
+      rowsHtml += '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:1.5%;width:16%;font-size:11px;line-height:1;text-align:center;">' + (sn || "") + '</div>' + '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:19%;width:44%;font-size:11px;line-height:1;overflow:hidden;white-space:nowrap;">' + nm + '</div>' + '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:64.5%;width:15%;font-size:11px;line-height:1;text-align:center;">' + (p.name ? "1" : "") + '</div>' + '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:80%;width:16%;font-size:11px;line-height:1;text-align:right;">' + price + '</div>';
     });
-    const totalHtml = totalPrice ? '<div style="position:absolute;top:75.8%;left:80.5%;width:15%;font-size:10.5px;text-align:right;font-weight:700;">' + fmtNum(totalPrice) + '</div>' : "";
-    const sigHtml = tf.custSignature ? '<img src="' + tf.custSignature + '" style="position:absolute;top:83.5%;left:66%;height:60px;object-fit:contain;" />' : "";
+    const totalHtml = totalPrice ? '<div style="position:absolute;top:75.9%;left:80%;width:16%;font-size:11.5px;line-height:1;text-align:right;font-weight:700;">' + fmtNum(totalPrice) + '</div>' : "";
+    const sigHtml = tf.custSignature ? '<img src="' + tf.custSignature + '" style="position:absolute;top:86%;left:63%;height:50px;object-fit:contain;" />' : "";
     const idImgHtml = tf.custIdCardImg ? '<img src="' + tf.custIdCardImg + '" style="position:absolute;top:20.7%;left:57.5%;width:38.7%;height:16%;object-fit:cover;" />' : "";
-    const html = '<div style="position:relative;width:794px;height:1123px;">' + '<img src="' + RECEIPT_BG + '" style="width:794px;height:1123px;display:block;" />' + idImgHtml + '<div style="position:absolute;top:16.8%;left:79%;font-size:12px;">' + (tf.date || "") + '</div>' + '<div style="position:absolute;top:24.5%;left:8%;font-size:12px;">' + (tf.custName || "") + '</div>' + '<div style="position:absolute;top:26.7%;left:9%;width:52%;font-size:11px;">' + (tf.custAddr ? tf.custAddr.replace(/\n/g, " ") : "") + '</div>' + '<div style="position:absolute;top:28.8%;left:17%;font-size:12px;">' + (tf.custId || "") + '</div>' + rowsHtml + totalHtml + '<div style="position:absolute;top:83.5%;left:22%;font-size:12px;">' + (tf.bank || "") + '</div>' + '<div style="position:absolute;top:85.8%;left:23%;font-size:12px;">' + (tf.account || "") + '</div>' + '<div style="position:absolute;top:88%;left:22%;font-size:12px;">' + (tf.payeeName || "") + '</div>' + sigHtml + '</div>';
+    const html = '<div style="position:relative;width:794px;height:1123px;">' + '<img src="' + RECEIPT_BG + '" style="width:794px;height:1123px;display:block;" />' + idImgHtml + '<div style="position:absolute;top:16.8%;left:79%;font-size:12px;line-height:1;">' + (tf.date || "") + '</div>' + '<div style="position:absolute;top:24.3%;left:8%;font-size:13px;line-height:1;">' + (tf.custName || "") + '</div>' + '<div style="position:absolute;top:26.5%;left:9%;width:52%;font-size:12px;line-height:1;">' + (tf.custAddr ? tf.custAddr.replace(/\n/g, " ") : "") + '</div>' + '<div style="position:absolute;top:28.6%;left:17%;font-size:13px;line-height:1;">' + (tf.custId || "") + '</div>' + rowsHtml + totalHtml + '<div style="position:absolute;top:83.5%;left:22%;font-size:12px;line-height:1;">' + (tf.bank || "") + '</div>' + '<div style="position:absolute;top:85.8%;left:23%;font-size:12px;line-height:1;">' + (tf.account || "") + '</div>' + '<div style="position:absolute;top:88%;left:22%;font-size:12px;line-height:1;">' + (tf.payeeName || "") + '</div>' + sigHtml + '</div>';
     renderHtmlToPdf(html, `ใบเสร็จ_${tf.custName || tf.date}.pdf`);
   };
   const generateConsignPdf = () => {
@@ -1965,11 +2289,11 @@ function App() {
       const name = useProducts ? (it.name || "") + (labels[it.id] || "") : it.name || "";
       const sn = useProducts ? it.snMount ? cleanSn(it.sn) + " / " + cleanSn(it.snMount) : cleanSn(it.sn) : "";
       const price = it.price ? fmtNum(parseNum(it.price)) : "";
-      rowsHtml += '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:1.9%;width:7.7%;font-size:9.5px;text-align:center;">' + (i + 1) + '</div>' + '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:26%;width:36%;font-size:9.5px;">' + name + '</div>' + '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:62.5%;width:17%;font-size:9.5px;">' + sn + '</div>' + '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:80.5%;width:16%;font-size:9.5px;text-align:right;">' + price + '</div>';
+      rowsHtml += '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:1.9%;width:7.7%;font-size:10px;line-height:1;text-align:center;">' + (i + 1) + '</div>' + '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:26%;width:36%;font-size:10px;line-height:1;overflow:hidden;white-space:nowrap;">' + name + '</div>' + '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:62.5%;width:17%;font-size:10px;line-height:1;">' + sn + '</div>' + '<div style="position:absolute;top:' + y.toFixed(2) + '%;left:80%;width:16.5%;font-size:10px;line-height:1;text-align:right;">' + price + '</div>';
     });
-    const sigHtml = tf.custSignature ? '<img src="' + tf.custSignature + '" style="position:absolute;top:89%;left:6%;height:52px;object-fit:contain;" />' : "";
+    const sigHtml = tf.custSignature ? '<img src="' + tf.custSignature + '" style="position:absolute;top:89%;left:6%;height:50px;object-fit:contain;" />' : "";
     const idImgHtml = tf.custIdCardImg ? '<img src="' + tf.custIdCardImg + '" style="position:absolute;top:11.8%;left:53.5%;width:44.3%;height:18.6%;object-fit:cover;" />' : "";
-    const html = '<div style="position:relative;width:794px;height:1123px;">' + '<img src="' + CONSIGN_BG + '" style="width:794px;height:1123px;display:block;" />' + idImgHtml + '<div style="position:absolute;top:16.4%;left:11%;font-size:11px;">' + (tf.date || "") + '</div>' + '<div style="position:absolute;top:19.4%;left:22%;width:36%;font-size:11px;">' + (tf.custName || "") + '</div>' + '<div style="position:absolute;top:22.4%;left:25%;font-size:11px;">' + (tf.custId || "") + '</div>' + '<div style="position:absolute;top:25.4%;left:13%;width:45%;font-size:10px;">' + (tf.custAddr ? tf.custAddr.replace(/\n/g, " ") : "") + '</div>' + '<div style="position:absolute;top:28.5%;left:16%;font-size:11px;">' + (tf.custPhone || "") + '</div>' + rowsHtml + sigHtml + '</div>';
+    const html = '<div style="position:relative;width:794px;height:1123px;">' + '<img src="' + CONSIGN_BG + '" style="width:794px;height:1123px;display:block;" />' + idImgHtml + '<div style="position:absolute;top:16.4%;left:11%;font-size:11px;line-height:1;">' + (tf.date || "") + '</div>' + '<div style="position:absolute;top:19.4%;left:22%;width:36%;font-size:11px;line-height:1;">' + (tf.custName || "") + '</div>' + '<div style="position:absolute;top:22.4%;left:25%;font-size:11px;line-height:1;">' + (tf.custId || "") + '</div>' + '<div style="position:absolute;top:25.4%;left:13%;width:45%;font-size:10.5px;line-height:1;">' + (tf.custAddr ? tf.custAddr.replace(/\n/g, " ") : "") + '</div>' + '<div style="position:absolute;top:28.5%;left:16%;font-size:11px;line-height:1;">' + (tf.custPhone || "") + '</div>' + rowsHtml + sigHtml + '</div>';
     renderHtmlToPdf(html, `ใบฝากขาย_${tf.custName || tf.date}.pdf`);
   };
   const startNewEntry = () => {
@@ -3005,7 +3329,18 @@ function App() {
     className: "text-[13px] text-[#9A9388]"
   }, "ยังไม่มีรายการของวันนี้ — ไปกรอกที่แท็บ \"รับซื้อ + แจ้งโอนเงิน\" แล้วกดบันทึกเข้าสรุปยอดก่อนนะคะ") : /*#__PURE__*/React.createElement("pre", {
     className: "whitespace-pre-wrap text-[13.5px] leading-relaxed text-[#3A362F] font-sans"
-  }, summaryText())))), toast && /*#__PURE__*/React.createElement("div", {
+  }, summaryText())))), cropSrc && /*#__PURE__*/React.createElement(ImageCropModal, {
+    src: cropSrc,
+    onCancel: () => setCropSrc(""),
+    onDone: dataUrl => {
+      setTf(prev => ({
+        ...prev,
+        custIdCardImg: dataUrl
+      }));
+      setCropSrc("");
+      showToast("เพิ่มรูปบัตรแล้ว จะไปอยู่ในช่องบัตรของเอกสาร");
+    }
+  }), toast && /*#__PURE__*/React.createElement("div", {
     className: "fixed bottom-5 left-1/2 -translate-x-1/2 bg-[#2B2823] border border-[#2B2823] text-white text-[13px] px-4 py-2 rounded-full shadow-lg z-20"
   }, toast));
 }
