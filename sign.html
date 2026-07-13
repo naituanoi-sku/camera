@@ -74,10 +74,10 @@
     pad.height = Math.round(r.height * dpr);
     ctx = pad.getContext("2d");
     ctx.scale(dpr, dpr);
-    ctx.lineWidth = 2.6;
+    ctx.lineWidth = 4.2;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.strokeStyle = "#111111";
+    ctx.strokeStyle = "#000000";
     if(data){
       var img = new Image();
       img.onload = function(){ ctx.drawImage(img, 0, 0, r.width, r.height); };
