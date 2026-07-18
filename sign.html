@@ -6,87 +6,58 @@
 <meta name="theme-color" content="#3E7A5A">
 <title>เซ็นเอกสาร + ถ่ายบัตร</title>
 <style>
-  :root{
-    --cream:#F4F3EF; --paper:#FFFFFF; --ink:#2B2823; --muted:#8A8377;
-    --green:#3E7A5A; --green-d:#356A4E; --green-soft:#DCEAE2;
-    --line:#D9D6CE; --danger:#B5652F;
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{margin:0; padding:0;}
-  body{
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Sarabun","Noto Sans Thai",sans-serif;
-    background:var(--cream); color:var(--ink);
-    line-height:1.55; padding:0 0 120px;
-  }
-  .wrap{max-width:520px; margin:0 auto; padding:18px 16px 0;}
-  header{text-align:center; padding:14px 0 6px;}
-  header .badge{
-    display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--green-d);
-    background:var(--green-soft); border:1px solid #BEDBC9; padding:5px 12px; border-radius:999px; font-weight:600;
-  }
-  header h1{font-size:21px; margin:12px 0 4px; font-weight:700; letter-spacing:-.2px;}
-  header p{font-size:13.5px; color:var(--muted); margin:0;}
-  .card{
-    background:var(--paper); border:1px solid var(--line); border-radius:16px;
-    padding:16px; margin-top:16px; box-shadow:0 1px 2px rgba(43,40,35,.04);
-  }
-  .step{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
-  .num{
-    flex:none; width:26px; height:26px; border-radius:50%; background:var(--green); color:#fff;
-    font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center;
-  }
-  .step h2{font-size:15.5px; margin:0; font-weight:700;}
-  .step .sub{font-size:12px; color:var(--muted); margin-top:1px;}
-  /* ID card */
-  .idbox{
-    border:2px dashed var(--line); border-radius:14px; background:#FAF9F6;
-    aspect-ratio:1.58/1; display:flex; align-items:center; justify-content:center;
-    overflow:hidden; position:relative; cursor:pointer; text-align:center;
-  }
-  .idbox img{width:100%; height:100%; object-fit:contain; background:#fff;}
-  .idbox .ph{color:var(--muted); font-size:13.5px; padding:16px;}
-  .idbox .ph .cam{font-size:34px; display:block; margin-bottom:6px;}
-  .retake{
-    display:none; margin-top:10px; width:100%; padding:10px; border:1px solid var(--line);
-    background:#fff; border-radius:11px; font-size:13.5px; color:var(--green-d); font-weight:600;
-  }
+  :root{--cream:#F4F3EF;--paper:#FFFFFF;--ink:#2B2823;--muted:#8A8377;--green:#3E7A5A;--green-d:#356A4E;--green-soft:#DCEAE2;--line:#D9D6CE;--danger:#B5652F;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Sarabun","Noto Sans Thai",sans-serif;background:var(--cream);color:var(--ink);line-height:1.55;padding:0 0 120px;}
+  .wrap{max-width:520px;margin:0 auto;padding:18px 16px 0;}
+  header{text-align:center;padding:14px 0 6px;}
+  header .badge{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--green-d);background:var(--green-soft);border:1px solid #BEDBC9;padding:5px 12px;border-radius:999px;font-weight:600;}
+  header h1{font-size:21px;margin:12px 0 4px;font-weight:700;letter-spacing:-.2px;}
+  header p{font-size:13.5px;color:var(--muted);margin:0;}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:16px;box-shadow:0 1px 2px rgba(43,40,35,.04);}
+  .step{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  .num{flex:none;width:26px;height:26px;border-radius:50%;background:var(--green);color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+  .step h2{font-size:15.5px;margin:0;font-weight:700;}
+  .step .sub{font-size:12px;color:var(--muted);margin-top:1px;}
+  .idbox{border:2px dashed var(--line);border-radius:14px;background:#FAF9F6;aspect-ratio:1.58/1;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;text-align:center;}
+  .idbox .ph{color:var(--muted);font-size:13.5px;padding:16px;}
+  .idbox .ph .cam{font-size:34px;display:block;margin-bottom:6px;}
   input[type=file]{display:none;}
-  /* signature */
-  .padwrap{position:relative; border:1px solid var(--line); border-radius:14px; background:#fff; overflow:hidden;}
-  canvas{display:block; width:100%; height:210px; touch-action:none;}
-  .padwrap .hint{
-    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    color:#C9C5BB; font-size:14px; pointer-events:none;
-  }
-  .clear{
-    margin-top:10px; width:100%; padding:9px; border:1px solid var(--line);
-    background:#fff; border-radius:11px; font-size:13px; color:var(--muted); font-weight:600;
-  }
-  /* submit */
-  .bar{
-    position:fixed; left:0; right:0; bottom:0; background:linear-gradient(to top,var(--cream) 72%,transparent);
-    padding:14px 16px calc(16px + env(safe-area-inset-bottom)); 
-  }
-  .bar .inner{max-width:520px; margin:0 auto;}
-  .send{
-    width:100%; padding:15px; border:none; border-radius:14px; background:var(--green); color:#fff;
-    font-size:16px; font-weight:700; font-family:inherit; box-shadow:0 4px 14px rgba(62,122,90,.28);
-  }
-  .send:disabled{background:#B9C6BF; box-shadow:none;}
+  .btn-line{margin-top:10px;width:100%;padding:11px;border:1px solid var(--line);background:#fff;border-radius:12px;font-size:13.5px;color:var(--green-d);font-weight:600;font-family:inherit;}
+  .btn-line.ghost{color:var(--muted);}
+  .btn-line.primary{background:var(--green);color:#fff;border:none;}
+  #cropWrap{display:none;}
+  .cropStage{position:relative;width:100%;background:#1c1b19;border-radius:12px;overflow:hidden;touch-action:none;user-select:none;}
+  .cropStage img{display:block;width:100%;height:auto;pointer-events:none;}
+  .cropBox{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(28,27,25,.55);cursor:move;box-sizing:border-box;}
+  .cropBox .h{position:absolute;width:28px;height:28px;background:transparent;}
+  .cropBox .h::after{content:"";position:absolute;width:16px;height:16px;background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.4);}
+  .cropBox .tl{top:-14px;left:-14px;}.cropBox .tl::after{right:0;bottom:0;}
+  .cropBox .tr{top:-14px;right:-14px;}.cropBox .tr::after{left:0;bottom:0;}
+  .cropBox .bl{bottom:-14px;left:-14px;}.cropBox .bl::after{right:0;top:0;}
+  .cropBox .br{bottom:-14px;right:-14px;}.cropBox .br::after{left:0;top:0;}
+  .crophint{font-size:12.5px;color:var(--muted);text-align:center;margin:10px 0 0;}
+  #idResult{display:none;}
+  #idResult img{width:100%;border-radius:12px;border:1px solid var(--line);display:block;background:#fff;}
+  .padwrap{position:relative;border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden;}
+  canvas#pad{display:block;width:100%;height:210px;touch-action:none;}
+  .padwrap .hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#C9C5BB;font-size:14px;pointer-events:none;}
+  .clear{margin-top:10px;width:100%;padding:9px;border:1px solid var(--line);background:#fff;border-radius:11px;font-size:13px;color:var(--muted);font-weight:600;font-family:inherit;}
+  .bar{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(to top,var(--cream) 72%,transparent);padding:14px 16px calc(16px + env(safe-area-inset-bottom));}
+  .bar .inner{max-width:520px;margin:0 auto;}
+  .send{width:100%;padding:15px;border:none;border-radius:14px;background:var(--green);color:#fff;font-size:16px;font-weight:700;font-family:inherit;box-shadow:0 4px 14px rgba(62,122,90,.28);}
+  .send:disabled{background:#B9C6BF;box-shadow:none;}
   .send:active:not(:disabled){transform:scale(.985);}
-  .foot{font-size:11.5px; color:var(--muted); text-align:center; margin-top:9px; line-height:1.5;}
-  /* states */
-  .done, .err{display:none; text-align:center; padding:48px 20px;}
-  .done .ic{font-size:56px;} .err .ic{font-size:52px;}
-  .done h2{font-size:22px; margin:14px 0 6px;} .err h2{font-size:20px; margin:14px 0 6px; color:var(--danger);}
-  .done p, .err p{color:var(--muted); font-size:14px; margin:0;}
-  .overlay{
-    position:fixed; inset:0; background:rgba(244,243,239,.82); display:none;
-    align-items:center; justify-content:center; flex-direction:column; gap:14px; z-index:50;
-  }
-  .spin{width:34px; height:34px; border:3px solid #CFE0D6; border-top-color:var(--green); border-radius:50%; animation:sp 1s linear infinite;}
+  .foot{font-size:11.5px;color:var(--muted);text-align:center;margin-top:9px;line-height:1.5;}
+  .done,.err{display:none;text-align:center;padding:48px 20px;}
+  .done .ic{font-size:56px;}.err .ic{font-size:52px;}
+  .done h2{font-size:22px;margin:14px 0 6px;}.err h2{font-size:20px;margin:14px 0 6px;color:var(--danger);}
+  .done p,.err p{color:var(--muted);font-size:14px;margin:0;}
+  .overlay{position:fixed;inset:0;background:rgba(244,243,239,.82);display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;z-index:50;}
+  .spin{width:34px;height:34px;border:3px solid #CFE0D6;border-top-color:var(--green);border-radius:50%;animation:sp 1s linear infinite;}
   @keyframes sp{to{transform:rotate(360deg);}}
-  .overlay p{font-size:14px; color:var(--green-d); font-weight:600;}
+  .overlay p{font-size:14px;color:var(--green-d);font-weight:600;}
 </style>
 </head>
 <body>
@@ -97,63 +68,43 @@
     <p>ทำ 2 ขั้นตอนแล้วกดส่งให้ร้านได้เลย</p>
   </header>
 
-  <!-- Step 1: ID card -->
   <div class="card">
-    <div class="step">
-      <div class="num">1</div>
-      <div>
-        <h2>ถ่ายรูปบัตรประชาชน</h2>
-        <div class="sub">วางบัตรให้เต็มกรอบ ชัด อ่านตัวเลขออก</div>
-      </div>
-    </div>
-    <label class="idbox" id="idbox" for="idInput">
-      <div class="ph" id="idph"><span class="cam">📷</span>แตะเพื่อถ่าย / เลือกรูปบัตร</div>
-      <img id="idImg" alt="" style="display:none;">
-    </label>
+    <div class="step"><div class="num">1</div><div><h2>ถ่ายรูปบัตรประชาชน</h2><div class="sub">ถ่ายให้ชัด แล้วลากกรอบให้พอดีบัตร</div></div></div>
+    <label class="idbox" id="idbox" for="idInput"><div class="ph"><span class="cam">📷</span>แตะเพื่อถ่าย / เลือกรูปบัตร</div></label>
     <input type="file" id="idInput" accept="image/*" capture="environment">
-    <button class="retake" id="retake" type="button">📷 ถ่าย/เลือกใหม่</button>
+    <div id="cropWrap">
+      <div class="cropStage" id="cropStage">
+        <img id="cropImg" alt="">
+        <div class="cropBox" id="cropBox">
+          <span class="h tl" data-h="tl"></span><span class="h tr" data-h="tr"></span>
+          <span class="h bl" data-h="bl"></span><span class="h br" data-h="br"></span>
+        </div>
+      </div>
+      <p class="crophint">ลากกรอบสี่มุมให้พอดีขอบบัตร</p>
+      <button class="btn-line primary" id="doCrop" type="button">✓ ครอปให้พอดีบัตร</button>
+      <button class="btn-line ghost" id="cropRetake" type="button">📷 ถ่าย/เลือกใหม่</button>
+    </div>
+    <div id="idResult">
+      <img id="idImg" alt="">
+      <button class="btn-line ghost" id="retake" type="button">📷 ถ่าย/ครอปใหม่</button>
+    </div>
   </div>
 
-  <!-- Step 2: signature -->
   <div class="card">
-    <div class="step">
-      <div class="num">2</div>
-      <div>
-        <h2>เซ็นลายเซ็น</h2>
-        <div class="sub">เซ็นด้วยนิ้วหรือปากกาในกรอบด้านล่าง</div>
-      </div>
-    </div>
-    <div class="padwrap">
-      <canvas id="pad"></canvas>
-      <div class="hint" id="hint">เซ็นตรงนี้</div>
-    </div>
+    <div class="step"><div class="num">2</div><div><h2>เซ็นลายเซ็น</h2><div class="sub">เซ็นด้วยนิ้วหรือปากกาในกรอบ</div></div></div>
+    <div class="padwrap"><canvas id="pad"></canvas><div class="hint" id="hint">เซ็นตรงนี้</div></div>
     <button class="clear" id="clear" type="button">ล้างลายเซ็น</button>
   </div>
-
   <div style="height:6px;"></div>
 </div>
 
-<div class="bar" id="bar">
-  <div class="inner">
-    <button class="send" id="send" type="button" disabled>ส่งให้ร้าน</button>
-    <div class="foot">ข้อมูลจะส่งให้ทางร้านเพื่อทำเอกสารเท่านั้น</div>
-  </div>
-</div>
+<div class="bar" id="bar"><div class="inner">
+  <button class="send" id="send" type="button" disabled>ส่งให้ร้าน</button>
+  <div class="foot">ข้อมูลจะส่งให้ทางร้านเพื่อทำเอกสารเท่านั้น</div>
+</div></div>
 
-<!-- Success -->
-<div class="wrap done" id="done">
-  <div class="ic">✅</div>
-  <h2>ส่งเรียบร้อยแล้ว</h2>
-  <p>ขอบคุณค่ะ ทางร้านได้รับลายเซ็นและรูปบัตรแล้ว<br>ปิดหน้านี้ได้เลย</p>
-</div>
-
-<!-- Error (no token) -->
-<div class="wrap err" id="err">
-  <div class="ic">⚠️</div>
-  <h2 id="errTitle">ลิงก์ไม่ถูกต้อง</h2>
-  <p id="errMsg">กรุณาขอลิงก์ใหม่จากทางร้านอีกครั้งนะคะ</p>
-</div>
-
+<div class="wrap done" id="done"><div class="ic">✅</div><h2>ส่งเรียบร้อยแล้ว</h2><p>ขอบคุณค่ะ ทางร้านได้รับลายเซ็นและรูปบัตรแล้ว<br>ปิดหน้านี้ได้เลย</p></div>
+<div class="wrap err" id="err"><div class="ic">⚠️</div><h2>ลิงก์ไม่ถูกต้อง</h2><p>กรุณาขอลิงก์ใหม่จากทางร้านอีกครั้งนะคะ</p></div>
 <div class="overlay" id="overlay"><div class="spin"></div><p>กำลังส่ง...</p></div>
 
 <script>
@@ -162,82 +113,96 @@
   var SUPABASE_URL="https://ueqfrddrkcihtabxtmuj.supabase.co";
   var SUPABASE_KEY="sb_publishable_r4BTqiPEuiQmZP1Qp8T9KA_EFbuOsUh";
   var TABLE="camera_purchases";
-
-  // token from ?t=
-  var params=new URLSearchParams(location.search);
-  var token=(params.get("t")||params.get("token")||"").trim();
-
   var $=function(id){return document.getElementById(id);};
 
-  if(!token){
-    $("app").style.display="none"; $("bar").style.display="none";
-    $("err").style.display="block";
-    return;
+  var params=new URLSearchParams(location.search);
+  var token=(params.get("t")||params.get("token")||"").trim();
+  if(!token){ $("app").style.display="none"; $("bar").style.display="none"; $("err").style.display="block"; return; }
+
+  var idData=null, srcImg=null, box={x:0,y:0,w:0,h:0};
+
+  function showState(s){
+    $("idbox").style.display   = s==="pick"?"flex":"none";
+    $("cropWrap").style.display= s==="crop"?"block":"none";
+    $("idResult").style.display= s==="done"?"block":"none";
   }
 
-  /* ---------- ID card ---------- */
-  var idData=null;
   $("idInput").addEventListener("change",function(e){
-    var f=e.target.files&&e.target.files[0];
-    if(!f)return;
-    var img=new Image();
-    var url=URL.createObjectURL(f);
-    img.onload=function(){
-      URL.revokeObjectURL(url);
-      // resize to max 1600px on the long side, keep it sharp
-      var max=1600, w=img.naturalWidth, h=img.naturalHeight;
-      var sc=Math.min(1, max/Math.max(w,h));
-      var cw=Math.round(w*sc), ch=Math.round(h*sc);
-      var c=document.createElement("canvas"); c.width=cw; c.height=ch;
-      var x=c.getContext("2d"); x.drawImage(img,0,0,cw,ch);
-      idData=c.toDataURL("image/jpeg",0.9);
-      var el=$("idImg"); el.src=idData; el.style.display="block";
-      $("idph").style.display="none"; $("retake").style.display="block";
-      refresh();
-    };
-    img.onerror=function(){ URL.revokeObjectURL(url); alert("อ่านรูปไม่สำเร็จ ลองใหม่อีกครั้งนะคะ"); };
+    var f=e.target.files&&e.target.files[0]; if(!f)return;
+    var url=URL.createObjectURL(f), img=new Image();
+    img.onload=function(){ URL.revokeObjectURL(url); startCrop(img); };
+    img.onerror=function(){ URL.revokeObjectURL(url); alert("อ่านรูปไม่สำเร็จ ลองใหม่นะคะ"); };
     img.src=url;
   });
-  $("retake").addEventListener("click",function(){ $("idInput").click(); });
+  $("cropRetake").addEventListener("click",function(){ $("idInput").value=""; $("idInput").click(); });
+  $("retake").addEventListener("click",function(){ $("idInput").value=""; $("idInput").click(); });
 
-  /* ---------- signature pad ---------- */
+  function startCrop(img){
+    srcImg=img; $("cropImg").src=img.src; showState("crop");
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){
+      var stage=$("cropStage"); var W=stage.clientWidth, H=$("cropImg").clientHeight||stage.clientHeight;
+      var bw=Math.min(W*0.9, H*1.585*0.9); var bh=bw/1.585;
+      if(bh>H*0.9){ bh=H*0.9; bw=bh*1.585; }
+      box={x:(W-bw)/2, y:(H-bh)/2, w:bw, h:bh}; drawBox();
+    });});
+  }
+  function drawBox(){ var b=$("cropBox"); b.style.left=box.x+"px"; b.style.top=box.y+"px"; b.style.width=box.w+"px"; b.style.height=box.h+"px"; }
+
+  (function(){
+    var stage=$("cropStage"), cbox=$("cropBox");
+    var mode=null, handle=null, sx=0, sy=0, ob=null;
+    function bounds(){ return {W:stage.clientWidth, H:$("cropImg").clientHeight}; }
+    function pt(e){ var r=stage.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; }
+    function down(e){
+      e.preventDefault(); var t=e.target, p=pt(e); sx=p.x; sy=p.y; ob={x:box.x,y:box.y,w:box.w,h:box.h};
+      if(t.dataset&&t.dataset.h){ mode="resize"; handle=t.dataset.h; } else { mode="move"; }
+      window.addEventListener("pointermove",move); window.addEventListener("pointerup",up);
+    }
+    function move(e){
+      if(!mode)return; e.preventDefault(); var p=pt(e), dx=p.x-sx, dy=p.y-sy, bn=bounds(), MIN=54;
+      if(mode==="move"){
+        box.x=Math.max(0, Math.min(ob.x+dx, bn.W-box.w));
+        box.y=Math.max(0, Math.min(ob.y+dy, bn.H-box.h));
+      } else {
+        if(handle==="tl"){ var nx=Math.max(0,Math.min(ob.x+dx,ob.x+ob.w-MIN)); box.x=nx; box.w=ob.x+ob.w-nx; var ny=Math.max(0,Math.min(ob.y+dy,ob.y+ob.h-MIN)); box.y=ny; box.h=ob.y+ob.h-ny; }
+        else if(handle==="tr"){ box.w=Math.max(MIN,Math.min(ob.w+dx,bn.W-ob.x)); var ny2=Math.max(0,Math.min(ob.y+dy,ob.y+ob.h-MIN)); box.y=ny2; box.h=ob.y+ob.h-ny2; }
+        else if(handle==="bl"){ var nx3=Math.max(0,Math.min(ob.x+dx,ob.x+ob.w-MIN)); box.x=nx3; box.w=ob.x+ob.w-nx3; box.h=Math.max(MIN,Math.min(ob.h+dy,bn.H-ob.y)); }
+        else if(handle==="br"){ box.w=Math.max(MIN,Math.min(ob.w+dx,bn.W-ob.x)); box.h=Math.max(MIN,Math.min(ob.h+dy,bn.H-ob.y)); }
+      }
+      drawBox();
+    }
+    function up(){ mode=null; handle=null; window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up); }
+    cbox.addEventListener("pointerdown",down);
+  })();
+
+  $("doCrop").addEventListener("click",function(){
+    if(!srcImg)return;
+    var disp=$("cropImg"), scale=srcImg.naturalWidth/disp.clientWidth;
+    var sx=Math.max(0,Math.round(box.x*scale)), sy=Math.max(0,Math.round(box.y*scale));
+    var sw=Math.round(box.w*scale), sh=Math.round(box.h*scale);
+    if(sw<10||sh<10){ alert("กรอบเล็กเกินไป ลองลากใหม่นะคะ"); return; }
+    var c=document.createElement("canvas"); c.width=sw; c.height=sh;
+    c.getContext("2d").drawImage(srcImg, sx, sy, sw, sh, 0, 0, sw, sh);
+    idData=c.toDataURL("image/jpeg",0.92);
+    $("idImg").src=idData; showState("done"); refresh();
+  });
+
+  /* signature */
   var pad=$("pad"), ctx=pad.getContext("2d"), drawing=false, hasSig=false, last=null;
-  function sizePad(){
-    var r=pad.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
-    pad.width=Math.round(r.width*dpr); pad.height=Math.round(r.height*dpr);
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-    ctx.lineJoin="round"; ctx.lineCap="round"; ctx.strokeStyle="#111"; ctx.lineWidth=2.6;
-  }
-  function pos(e){
-    var r=pad.getBoundingClientRect();
-    var p=e.touches?e.touches[0]:e;
-    return {x:p.clientX-r.left, y:p.clientY-r.top};
-  }
-  function start(e){ e.preventDefault(); drawing=true; last=pos(e); if(!hasSig){hasSig=true; $("hint").style.display="none"; refresh();} }
-  function move(e){ if(!drawing)return; e.preventDefault(); var p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; }
-  function end(e){ drawing=false; }
-  pad.addEventListener("pointerdown",start); pad.addEventListener("pointermove",move);
-  window.addEventListener("pointerup",end);
-  pad.addEventListener("touchstart",start,{passive:false}); pad.addEventListener("touchmove",move,{passive:false});
-  window.addEventListener("touchend",end);
+  function sizePad(){ var r=pad.getBoundingClientRect(), dpr=window.devicePixelRatio||1; pad.width=Math.round(r.width*dpr); pad.height=Math.round(r.height*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.lineJoin="round"; ctx.lineCap="round"; ctx.strokeStyle="#111"; ctx.lineWidth=2.6; }
+  function pos(e){ var r=pad.getBoundingClientRect(); var p=e.touches?e.touches[0]:e; return {x:p.clientX-r.left, y:p.clientY-r.top}; }
+  function sstart(e){ e.preventDefault(); drawing=true; last=pos(e); if(!hasSig){hasSig=true; $("hint").style.display="none"; refresh();} }
+  function smove(e){ if(!drawing)return; e.preventDefault(); var p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; }
+  function send_(){ drawing=false; }
+  pad.addEventListener("pointerdown",sstart); pad.addEventListener("pointermove",smove); window.addEventListener("pointerup",send_);
   $("clear").addEventListener("click",function(){ ctx.clearRect(0,0,pad.width,pad.height); hasSig=false; $("hint").style.display="flex"; refresh(); });
-  window.addEventListener("resize",function(){ /* keep it simple: clearing on resize */ if(!hasSig){sizePad();} });
   sizePad();
+  function sigPng(){ return pad.toDataURL("image/png"); }
 
-  /* signature -> transparent PNG (black strokes) */
-  function sigPng(){
-    var r=pad.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
-    // export as-is (transparent background, black strokes)
-    return pad.toDataURL("image/png");
-  }
-
-  /* ---------- validation ---------- */
   function refresh(){ $("send").disabled=!(idData && hasSig); }
-
-  /* ---------- submit ---------- */
   function headers(){ return {apikey:SUPABASE_KEY, Authorization:"Bearer "+SUPABASE_KEY, "Content-Type":"application/json", Prefer:"resolution=merge-duplicates"}; }
   $("send").addEventListener("click",function(){
-    if(!(idData && hasSig)) return;
+    if(!(idData && hasSig))return;
     $("overlay").style.display="flex";
     var body=[
       {id:"sig:"+token, date_key:"__sign__", entry:{signature:sigPng()}},
@@ -245,12 +210,13 @@
     ];
     fetch(SUPABASE_URL+"/rest/v1/"+TABLE+"?on_conflict=id",{method:"POST",headers:headers(),body:JSON.stringify(body)})
       .then(function(res){
-        $("overlay").style.display="none";
-        if(res.ok){ $("app").style.display="none"; $("bar").style.display="none"; $("done").style.display="block"; window.scrollTo(0,0); }
-        else { alert("ส่งไม่สำเร็จ (รหัส "+res.status+") ลองกดส่งอีกครั้งนะคะ"); }
+        if(res.ok){ $("overlay").style.display="none"; $("app").style.display="none"; $("bar").style.display="none"; $("done").style.display="block"; window.scrollTo(0,0); return; }
+        return res.text().then(function(txt){ $("overlay").style.display="none"; alert("ส่งไม่สำเร็จ (รหัส "+res.status+")\n\n"+(txt||"").slice(0,400)); });
       })
-      .catch(function(){ $("overlay").style.display="none"; alert("ส่งไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองใหม่นะคะ"); });
+      .catch(function(err){ $("overlay").style.display="none"; alert("ส่งไม่สำเร็จ (เชื่อมต่อไม่ได้)\n"+(err&&err.message?err.message:"")); });
   });
+
+  showState("pick");
 })();
 </script>
 </body>
