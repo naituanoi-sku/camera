@@ -136,10 +136,7 @@
 
   $("idInput").addEventListener("change",function(e){
     var f=e.target.files&&e.target.files[0]; if(!f)return;
-    var url=URL.createObjectURL(f), img=new Image();
-    img.onload=function(){ URL.revokeObjectURL(url); startCrop(img); };
-    img.onerror=function(){ URL.revokeObjectURL(url); alert("อ่านรูปไม่สำเร็จ ลองใหม่นะคะ"); };
-    img.src=url;
+    var url=URL.createObjectURL(f), img=new Image(); img.onload=function(){ try{ var w=img.naturalWidth||img.width, h=img.naturalHeight||img.height; var sc=Math.min(1, 1600/Math.max(w,h)); var c=document.createElement("canvas"); c.width=Math.max(1,Math.round(w*sc)); c.height=Math.max(1,Math.round(h*sc)); c.getContext("2d").drawImage(img,0,0,c.width,c.height); var durl=c.toDataURL("image/jpeg",0.92); URL.revokeObjectURL(url); var im2=new Image(); im2.onload=function(){ startCrop(im2); }; im2.onerror=function(){ alert("อ่านรูปไม่สำเร็จ ลองใหม่นะคะ"); }; im2.src=durl; }catch(err){ startCrop(img); } }; img.onerror=function(){ URL.revokeObjectURL(url); alert("อ่านรูปไม่สำเร็จ ลองถ่ายใหม่ หรือเลือกจากคลังภาพนะคะ"); }; img.src=url;
   });
   $("cropRetake").addEventListener("click",function(){ $("idInput").value=""; $("idInput").click(); });
   $("retake").addEventListener("click",function(){ $("idInput").value=""; $("idInput").click(); });
