@@ -205,13 +205,13 @@
 
   /* signature */
   var pad=$("pad"), ctx=pad.getContext("2d"), drawing=false, hasSig=false, last=null, lastMid=null;
-  function sizePad(){ var r=pad.getBoundingClientRect(), dpr=window.devicePixelRatio||1; pad.width=Math.round(r.width*dpr); pad.height=Math.round(r.height*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.lineJoin="round"; ctx.lineCap="round"; ctx.strokeStyle="#000"; ctx.lineWidth=2.8; }
+  function sizePad(){ var r=pad.getBoundingClientRect(), dpr=window.devicePixelRatio||1; pad.width=Math.round(r.width*dpr); pad.height=Math.round(r.height*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.fillStyle="#FFFFFF"; ctx.fillRect(0,0,r.width,r.height); ctx.lineJoin="round"; ctx.lineCap="round"; ctx.strokeStyle="#000"; ctx.lineWidth=2.8; }
   function pos(e){ var r=pad.getBoundingClientRect(); var p=e.touches?e.touches[0]:e; return {x:p.clientX-r.left, y:p.clientY-r.top}; }
   function sstart(e){ e.preventDefault(); drawing=true; last=pos(e); lastMid=last; if(!hasSig){hasSig=true; $("hint").style.display="none"; refresh();} }
   function smove(e){ if(!drawing)return; e.preventDefault(); var p=pos(e); var mid={x:(last.x+p.x)/2,y:(last.y+p.y)/2}; ctx.beginPath(); ctx.moveTo(lastMid.x,lastMid.y); ctx.quadraticCurveTo(last.x,last.y,mid.x,mid.y); ctx.stroke(); last=p; lastMid=mid; }
   function send_(){ drawing=false; }
   pad.addEventListener("pointerdown",sstart); pad.addEventListener("pointermove",smove); window.addEventListener("pointerup",send_);
-  $("clear").addEventListener("click",function(){ ctx.clearRect(0,0,pad.width,pad.height); hasSig=false; $("hint").style.display="flex"; refresh(); });
+  $("clear").addEventListener("click",function(){ ctx.clearRect(0,0,pad.width,pad.height); ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle="#FFFFFF"; ctx.fillRect(0,0,pad.width,pad.height); ctx.restore(); hasSig=false; $("hint").style.display="flex"; refresh(); });
   sizePad();
   function sigPng(){
     try{
@@ -219,7 +219,8 @@
       var q=ctx.getImageData(0,0,W,H).data;
       var x1=W, y1=H, x2=-1, y2=-1;
       for(var yy=0; yy<H; yy++){ for(var xx=0; xx<W; xx++){
-        if(q[(yy*W+xx)*4+3] > 12){
+        var _i=(yy*W+xx)*4; var _L=0.299*q[_i]+0.587*q[_i+1]+0.114*q[_i+2];
+        if(q[_i+3] > 12 && _L < 200){
           if(xx<x1)x1=xx; if(xx>x2)x2=xx;
           if(yy<y1)y1=yy; if(yy>y2)y2=yy;
         }
