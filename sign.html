@@ -4,13 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#3E7A5A">
-<title>เซ็นเอกสาร + ถ่ายบัตร</title>
-<!-- sign.html v14.12-02 : กระดานโปร่งใส + เส้นสีดำ + ส่งออก PNG (ตรวจแล้วถูกต้อง ไม่ได้แก้ตรรกะใดๆ) -->
-<script>window.__SIGN_VER="v14.12-02";</script>
+<title>เซ็นเอกสาร + ถ่ายบัตร / Sign document</title>
+<!-- sign.html v14.13-01 (TH+EN) : กระดานโปร่งใส + เส้นสีดำ + ส่งออก PNG (ตรวจแล้วถูกต้อง ไม่ได้แก้ตรรกะใดๆ) -->
+<script>window.__SIGN_VER="v14.13-01";</script>
 <meta name="description" content="สำหรับลูกค้า: ถ่ายรูปบัตรประชาชน + เซ็นชื่อ แล้วกดส่งให้ร้าน ใช้เวลาไม่ถึง 1 นาที">
 <meta property="og:title" content="เซ็นเอกสาร + ถ่ายบัตร">
 <meta property="og:description" content="ถ่ายรูปบัตร + เซ็นชื่อ แล้วกดส่งให้ร้านได้เลย">
 <style>
+  .en{display:block;font-size:11.5px;color:#8A8377;font-weight:400;line-height:1.35;margin-top:2px;}
   :root{--cream:#F4F3EF;--paper:#FFFFFF;--ink:#2B2823;--muted:#8A8377;--green:#3E7A5A;--green-d:#356A4E;--green-soft:#DCEAE2;--line:#D9D6CE;--danger:#B5652F;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;}
@@ -83,17 +84,17 @@ document.addEventListener("selectstart",function(e){if(!isIn(e.target))e.prevent
 <body>
 <div class="wrap" id="app">
   <header>
-    <span class="badge">🔒 หน้าเซ็นเอกสารสำหรับลูกค้า</span>
-    <h1>เซ็นเอกสาร + ถ่ายรูปบัตร</h1>
-    <p>ทำ 2 ขั้นตอนแล้วกดส่งให้ร้านได้เลย</p>
+    <span class="badge">🔒 หน้าเซ็นเอกสารสำหรับลูกค้า · Document signing</span>
+    <h1>เซ็นเอกสาร + ถ่ายรูปบัตร<span class="en">Sign document + photo of ID / Passport</span></h1>
+    <p>ทำ 2 ขั้นตอนแล้วกดส่งให้ร้านได้เลย<span class="en">2 steps, then press send</span></p>
   </header>
 
   <div class="card">
-    <div class="step"><div class="num">1</div><div><h2>ถ่ายรูปบัตรประชาชน</h2><div class="sub">ถ่ายรูป → ลากกรอบให้พอดีบัตร → กดตัดกรอบ</div></div></div>
-    <label class="idbox" id="idbox" for="idInput"><div class="ph"><span class="cam">📷</span>แตะเพื่อถ่ายรูป<br><span style="font-size:12.5px;color:#9A9388;">หรือเลือกรูปบัตรที่มีอยู่ในเครื่อง</span></div></label>
+    <div class="step"><div class="num">1</div><div><h2>ถ่ายรูปบัตรประชาชน / พาสปอร์ต<span class="en">Photo of your ID card or passport</span></h2><div class="sub">ถ่ายรูป → ลากกรอบให้พอดีบัตร → กดตัดกรอบ<span class="en">Take a photo → drag the frame to fit → press crop</span></div></div></div>
+    <label class="idbox" id="idbox" for="idInput"><div class="ph"><span class="cam">📷</span>แตะเพื่อถ่ายรูป<span class="en">Tap to take a photo</span><span style="font-size:12.5px;color:#9A9388;">หรือเลือกรูปบัตรที่มีอยู่ในเครื่อง<span class="en">or choose an existing photo</span></span></div></label>
     <input type="file" id="idInput" accept="image/*">
     <div id="cropWrap">
-      <div class="cropnote"><b>ลากกรอบสีขาวให้ครอบบัตรพอดี</b><br>จับจุดมุมทั้ง 4 ลากให้ตรงขอบบัตร — ส่วนมืดคือส่วนที่จะตัดทิ้ง</div>
+      <div class="cropnote"><b>ลากกรอบสีขาวให้ครอบบัตรพอดี</b><span class="en">Drag the white frame to fit your card</span><br>จับจุดมุมทั้ง 4 ลากให้ตรงขอบบัตร — ส่วนมืดคือส่วนที่จะตัดทิ้ง<span class="en">Drag the 4 corners to the edges — the dark area will be cut off</span></div>
       <div class="cropStage" id="cropStage">
         <img id="cropImg" alt="">
         <div class="cropBox" id="cropBox">
@@ -102,32 +103,32 @@ document.addEventListener("selectstart",function(e){if(!isIn(e.target))e.prevent
         </div>
       </div>
       
-      <button class="btn-line primary" id="doCrop" type="button">✓ ตัดกรอบนี้ → ไปขั้นต่อไป</button>
-      <button class="btn-line ghost" id="cropRetake" type="button">📷 ถ่าย/เลือกใหม่</button>
-      <button class="btn-line skip" id="skipCrop" type="button">ทำไม่ได้? กดข้าม — ใช้รูปเต็มได้เลย</button>
+      <button class="btn-line primary" id="doCrop" type="button">✓ ตัดกรอบนี้ → ไปขั้นต่อไป<span class="en">Crop and continue</span></button>
+      <button class="btn-line ghost" id="cropRetake" type="button">📷 ถ่าย/เลือกใหม่<span class="en">Retake / choose again</span></button>
+      <button class="btn-line skip" id="skipCrop" type="button">ทำไม่ได้? กดข้าม — ใช้รูปเต็มได้เลย<span class="en">Skip — use the full photo</span></button>
     </div>
     <div id="idResult">
       <img id="idImg" alt="">
-      <button class="btn-line ghost" id="retake" type="button">📷 ถ่าย/ครอปใหม่</button>
+      <button class="btn-line ghost" id="retake" type="button">📷 ถ่าย/ครอปใหม่<span class="en">Retake / crop again</span></button>
     </div>
   </div>
 
   <div class="card">
-    <div class="step"><div class="num">2</div><div><h2>เซ็นลายเซ็น</h2><div class="sub">เซ็นด้วยนิ้วหรือปากกาในกรอบ</div></div></div>
-    <div class="padwrap"><canvas id="pad"></canvas><div class="sigline"></div><div class="sigline-tag">เซ็นบนเส้นนี้</div><div class="hint" id="hint">เซ็นตรงนี้</div></div>
-    <button class="clear" id="clear" type="button">ล้างลายเซ็น</button>
+    <div class="step"><div class="num">2</div><div><h2>เซ็นลายเซ็น<span class="en">Sign your name</span></h2><div class="sub">เซ็นด้วยนิ้วหรือปากกาในกรอบ<span class="en">Sign with your finger or a stylus</span></div></div></div>
+    <div class="padwrap"><canvas id="pad"></canvas><div class="sigline"></div><div class="sigline-tag">เซ็นบนเส้นนี้ / Sign on this line</div><div class="hint" id="hint">เซ็นตรงนี้ / Sign here</div></div>
+    <button class="clear" id="clear" type="button">ล้างลายเซ็น / Clear</button>
   </div>
   <div style="height:6px;"></div>
 </div>
 
 <div class="bar" id="bar"><div class="inner">
-  <button class="send" id="send" type="button" disabled>ส่งให้ร้าน</button>
-  <div class="foot">ข้อมูลจะส่งให้ทางร้านเพื่อทำเอกสารเท่านั้น</div>
+  <button class="send" id="send" type="button" disabled>ส่งให้ร้าน / Send</button>
+  <div class="foot">ข้อมูลจะส่งให้ทางร้านเพื่อทำเอกสารเท่านั้น<span class="en">Your data is used only to prepare your document</span></div>
 </div></div>
 
-<div class="wrap done" id="done"><div class="ic">✅</div><h2>ส่งเรียบร้อยแล้ว</h2><p>ขอบคุณค่ะ ทางร้านได้รับลายเซ็นและรูปบัตรแล้ว<br>ปิดหน้านี้ได้เลย</p></div>
-<div class="wrap err" id="err"><div class="ic">⚠️</div><h2>ลิงก์ไม่ถูกต้อง</h2><p>กรุณาขอลิงก์ใหม่จากทางร้านอีกครั้งนะคะ</p></div>
-<div class="overlay" id="overlay"><div class="spin"></div><p>กำลังส่ง...</p></div>
+<div class="wrap done" id="done"><div class="ic">✅</div><h2>ส่งเรียบร้อยแล้ว<span class="en">Sent successfully</span></h2><p>ขอบคุณค่ะ ทางร้านได้รับลายเซ็นและรูปบัตรแล้ว<br>ปิดหน้านี้ได้เลย<span class="en">Thank you — we have received your signature and ID photo. You can close this page.</span></p></div>
+<div class="wrap err" id="err"><div class="ic">⚠️</div><h2>ลิงก์ไม่ถูกต้อง<span class="en">Invalid link</span></h2><p>กรุณาขอลิงก์ใหม่จากทางร้านอีกครั้งนะคะ<span class="en">Please ask our shop for a new link</span></p></div>
+<div class="overlay" id="overlay"><div class="spin"></div><p>กำลังส่ง... / Sending...</p></div>
 
 <script>
 (function(){
@@ -151,7 +152,7 @@ document.addEventListener("selectstart",function(e){if(!isIn(e.target))e.prevent
 
   $("idInput").addEventListener("change",function(e){
     var f=e.target.files&&e.target.files[0]; if(!f)return;
-    var url=URL.createObjectURL(f), img=new Image(); img.onload=function(){ try{ var w=img.naturalWidth||img.width, h=img.naturalHeight||img.height; var sc=Math.min(1, 1600/Math.max(w,h)); var c=document.createElement("canvas"); c.width=Math.max(1,Math.round(w*sc)); c.height=Math.max(1,Math.round(h*sc)); c.getContext("2d").drawImage(img,0,0,c.width,c.height); var durl=c.toDataURL("image/jpeg",0.92); URL.revokeObjectURL(url); var im2=new Image(); im2.onload=function(){ startCrop(im2); }; im2.onerror=function(){ alert("อ่านรูปไม่สำเร็จ ลองใหม่นะคะ"); }; im2.src=durl; }catch(err){ startCrop(img); } }; img.onerror=function(){ URL.revokeObjectURL(url); alert("อ่านรูปไม่สำเร็จ ลองถ่ายใหม่ หรือเลือกจากคลังภาพนะคะ"); }; img.src=url;
+    var url=URL.createObjectURL(f), img=new Image(); img.onload=function(){ try{ var w=img.naturalWidth||img.width, h=img.naturalHeight||img.height; var sc=Math.min(1, 1600/Math.max(w,h)); var c=document.createElement("canvas"); c.width=Math.max(1,Math.round(w*sc)); c.height=Math.max(1,Math.round(h*sc)); c.getContext("2d").drawImage(img,0,0,c.width,c.height); var durl=c.toDataURL("image/jpeg",0.92); URL.revokeObjectURL(url); var im2=new Image(); im2.onload=function(){ startCrop(im2); }; im2.onerror=function(){ alert("อ่านรูปไม่สำเร็จ ลองใหม่นะคะ\nCould not read the photo. Please try again."); }; im2.src=durl; }catch(err){ startCrop(img); } }; img.onerror=function(){ URL.revokeObjectURL(url); alert("อ่านรูปไม่สำเร็จ ลองถ่ายใหม่ หรือเลือกจากคลังภาพนะคะ\nCould not read the photo. Please retake it or pick one from your gallery."); }; img.src=url;
   });
   $("cropRetake").addEventListener("click",function(){ $("idInput").value=""; $("idInput").click(); });
   $("retake").addEventListener("click",function(){ $("idInput").value=""; $("idInput").click(); });
@@ -209,7 +210,7 @@ document.addEventListener("selectstart",function(e){if(!isIn(e.target))e.prevent
     var disp=$("cropImg"), scale=srcImg.naturalWidth/disp.clientWidth;
     var sx=Math.max(0,Math.round(box.x*scale)), sy=Math.max(0,Math.round(box.y*scale));
     var sw=Math.round(box.w*scale), sh=Math.round(box.h*scale);
-    if(sw<10||sh<10){ alert("กรอบเล็กเกินไป ลองลากใหม่นะคะ"); return; }
+    if(sw<10||sh<10){ alert("กรอบเล็กเกินไป ลองลากใหม่นะคะ\nThe frame is too small. Please drag it again."); return; }
     var c=document.createElement("canvas"); c.width=sw; c.height=sh;
     c.getContext("2d").drawImage(srcImg, sx, sy, sw, sh, 0, 0, sw, sh);
     idData=c.toDataURL("image/jpeg",0.92);
@@ -240,9 +241,9 @@ document.addEventListener("selectstart",function(e){if(!isIn(e.target))e.prevent
     fetch(SUPABASE_URL+"/rest/v1/"+TABLE+"?on_conflict=id",{method:"POST",headers:headers(),body:JSON.stringify(body)})
       .then(function(res){
         if(res.ok){ $("overlay").style.display="none"; $("app").style.display="none"; $("bar").style.display="none"; $("done").style.display="block"; window.scrollTo(0,0); return; }
-        return res.text().then(function(txt){ $("overlay").style.display="none"; alert("ส่งไม่สำเร็จ (รหัส "+res.status+")\n\n"+(txt||"").slice(0,400)); });
+        return res.text().then(function(txt){ $("overlay").style.display="none"; alert("ส่งไม่สำเร็จ / Send failed (รหัส "+res.status+")\n\n"+(txt||"").slice(0,400)); });
       })
-      .catch(function(err){ $("overlay").style.display="none"; alert("ส่งไม่สำเร็จ (เชื่อมต่อไม่ได้)\n"+(err&&err.message?err.message:"")); });
+      .catch(function(err){ $("overlay").style.display="none"; alert("ส่งไม่สำเร็จ (เชื่อมต่อไม่ได้) / Send failed (no connection)\n"+(err&&err.message?err.message:"")); });
   });
 
   showState("pick");
