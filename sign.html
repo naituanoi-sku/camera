@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#3E7A5A">
 <title>เซ็นเอกสาร + ถ่ายบัตร / Sign document</title>
-<!-- sign.html v14.14-01 (TH+EN) : กระดานโปร่งใส + เส้นสีดำ + ส่งออก PNG (ตรวจแล้วถูกต้อง ไม่ได้แก้ตรรกะใดๆ) -->
-<script>window.__SIGN_VER="v14.14-01";</script>
+<!-- sign.html v14.15-01 (TH+EN) · 20/11/2026 อ่านรูปบัตร : objectURL → FileReader → createImageBitmap (แก้ Messenger อ่านรูปไม่ได้) · เดิม v14.14-01 : กระดานโปร่งใส + เส้นสีดำ + ส่งออก PNG (ตรวจแล้วถูกต้อง ไม่ได้แก้ตรรกะใดๆ) -->
+<script>window.__SIGN_VER="v14.15-01";</script>
 <meta name="description" content="สำหรับลูกค้า: ถ่ายรูปบัตร/พาสปอร์ต + เซ็นชื่อ ใช้เวลาไม่ถึง 1 นาที · Takes less than a minute">
 <meta property="og:title" content="เซ็นเอกสาร + ถ่ายบัตร / Sign document + ID photo">
 <meta property="og:description" content="ถ่ายรูปบัตร + เซ็นชื่อ แล้วกดส่งให้ร้าน · Photo of ID/passport + signature, then press send">
@@ -152,7 +152,13 @@ document.addEventListener("selectstart",function(e){if(!isIn(e.target))e.prevent
 
   $("idInput").addEventListener("change",function(e){
     var f=e.target.files&&e.target.files[0]; if(!f)return;
-    var url=URL.createObjectURL(f), img=new Image(); img.onload=function(){ try{ var w=img.naturalWidth||img.width, h=img.naturalHeight||img.height; var sc=Math.min(1, 1600/Math.max(w,h)); var c=document.createElement("canvas"); c.width=Math.max(1,Math.round(w*sc)); c.height=Math.max(1,Math.round(h*sc)); c.getContext("2d").drawImage(img,0,0,c.width,c.height); var durl=c.toDataURL("image/jpeg",0.92); URL.revokeObjectURL(url); var im2=new Image(); im2.onload=function(){ startCrop(im2); }; im2.onerror=function(){ alert("อ่านรูปไม่สำเร็จ ลองใหม่นะคะ\nCould not read the photo. Please try again."); }; im2.src=durl; }catch(err){ startCrop(img); } }; img.onerror=function(){ URL.revokeObjectURL(url); alert("อ่านรูปไม่สำเร็จ ลองถ่ายใหม่ หรือเลือกจากคลังภาพนะคะ\nCould not read the photo. Please retake it or pick one from your gallery."); }; img.src=url;
+    var fail=function(){ alert("อ่านรูปไม่สำเร็จ ลองถ่ายใหม่ หรือเลือกจากคลังภาพนะคะ\nถ้ายังไม่ได้ : กด ⋯ มุมขวาบน → เปิดในเบราว์เซอร์ (Chrome / Safari)\n\nCould not read the photo. Please retake it or pick one from your gallery.\nStill not working? Tap ⋯ (top right) → Open in browser."); };
+    var shrink=function(img){ try{ var w=img.naturalWidth||img.width, h=img.naturalHeight||img.height; if(!w||!h){ fail(); return; } var sc=Math.min(1, 1600/Math.max(w,h)); var c=document.createElement("canvas"); c.width=Math.max(1,Math.round(w*sc)); c.height=Math.max(1,Math.round(h*sc)); c.getContext("2d").drawImage(img,0,0,c.width,c.height); var durl=c.toDataURL("image/jpeg",0.92); var im2=new Image(); im2.onload=function(){ startCrop(im2); }; im2.onerror=function(){ startCrop(img); }; im2.src=durl; }catch(err){ try{ startCrop(img); }catch(_e){ fail(); } } };
+    var viaBitmap=function(){ try{ if(!window.createImageBitmap){ fail(); return; } createImageBitmap(f).then(function(bm){ try{ var sc=Math.min(1, 1600/Math.max(bm.width,bm.height)); var c=document.createElement("canvas"); c.width=Math.max(1,Math.round(bm.width*sc)); c.height=Math.max(1,Math.round(bm.height*sc)); c.getContext("2d").drawImage(bm,0,0,c.width,c.height); var im3=new Image(); im3.onload=function(){ startCrop(im3); }; im3.onerror=fail; im3.src=c.toDataURL("image/jpeg",0.92); }catch(_e){ fail(); } }).catch(fail); }catch(_e){ fail(); } };
+    var viaReader=function(){ try{ var fr=new FileReader(); fr.onload=function(){ var im=new Image(); im.onload=function(){ shrink(im); }; im.onerror=viaBitmap; im.src=fr.result; }; fr.onerror=viaBitmap; fr.readAsDataURL(f); }catch(_e){ viaBitmap(); } };
+    var url=""; try{ url=URL.createObjectURL(f); }catch(_e){ url=""; }
+    if(!url){ viaReader(); return; }
+    var img=new Image(); img.onload=function(){ URL.revokeObjectURL(url); shrink(img); }; img.onerror=function(){ try{ URL.revokeObjectURL(url); }catch(_e){} viaReader(); }; img.src=url;
   });
   $("cropRetake").addEventListener("click",function(){ $("idInput").value=""; $("idInput").click(); });
   $("retake").addEventListener("click",function(){ $("idInput").value=""; $("idInput").click(); });
